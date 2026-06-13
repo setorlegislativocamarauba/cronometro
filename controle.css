@@ -1,0 +1,350 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+
+    font-family:Arial,sans-serif;
+
+    background:#f3f4f6;
+
+}
+
+/* TOPO */
+
+.modosSessao{
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:10px;
+
+    padding:12px;
+
+    background:white;
+
+    border-bottom:1px solid #ddd;
+
+}
+
+.modosSessao button{
+
+    background:#455a64;
+
+    color:white;
+
+    border:none;
+
+    padding:10px 16px;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+}
+
+.modoAtivo{
+
+    background:#2b7cd3 !important;
+
+}
+
+/* TÍTULO */
+
+#tituloSessao{
+
+    text-align:center;
+
+    font-size:28px;
+
+    font-weight:bold;
+
+    color:#1f73d2;
+
+    padding:15px;
+
+}
+
+/* CONTAINER */
+
+.container{
+
+    display:flex;
+
+    gap:15px;
+
+    padding:15px;
+
+    height:calc(100vh - 120px);
+
+}
+
+/* COLUNAS */
+
+.coluna{
+
+    width:340px;
+
+}
+
+.colunaPrincipal{
+
+    flex:1.8;
+
+}
+
+/* PAINÉIS */
+
+.painel,
+.painelPrincipal{
+
+    background:white;
+
+    border-radius:12px;
+
+    box-shadow:
+    0 2px 10px rgba(0,0,0,.08);
+
+    padding:15px;
+
+    height:100%;
+
+}
+
+.painelPrincipal{
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+}
+
+/* STATUS */
+
+.tituloStatus{
+
+    font-size:34px;
+
+    font-weight:bold;
+
+    color:#666;
+
+    margin-top:10px;
+
+}
+
+#oradorAtual{
+
+    font-size:56px;
+
+    font-weight:bold;
+
+    color:#1f73d2;
+
+    text-align:center;
+
+    margin-top:15px;
+
+}
+
+#cronometro{
+
+    font-size:110px;
+
+    font-weight:bold;
+
+    margin-top:20px;
+
+}
+
+#proximoOrador{
+
+    margin-top:15px;
+
+    font-size:22px;
+
+    color:#555;
+
+}
+
+/* BOTÕES */
+
+.opcoes{
+
+    margin-top:30px;
+
+    display:flex;
+
+    gap:15px;
+
+}
+
+.acoes{
+
+    margin-top:30px;
+
+    display:flex;
+
+    flex-wrap:wrap;
+
+    justify-content:center;
+
+    gap:10px;
+
+}
+
+button{
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+}
+
+#btnIniciar{
+
+    background:#2e7d32;
+
+    color:white;
+
+    padding:10px 18px;
+
+}
+
+#btnPausar{
+
+    background:#f57c00;
+
+    color:white;
+
+    padding:10px 18px;
+
+}
+
+#btnRestaurar{
+
+    background:#00acc1;
+
+    color:white;
+
+    padding:10px 18px;
+
+}
+
+#btnEncerrar{
+
+    background:#d32f2f;
+
+    color:white;
+
+    padding:10px 18px;
+
+}
+
+#btnProximo{
+
+    background:#2b7cd3;
+
+    color:white;
+
+    padding:10px 18px;
+
+}
+
+#btnReplica{
+
+    background:#6a1b9a;
+
+    color:white;
+
+    padding:10px 18px;
+
+}
+
+#btnTelao{
+
+    background:#455a64;
+
+    color:white;
+
+    padding:10px 18px;
+
+}
+
+/* MODAL */
+
+.modal{
+
+    display:none;
+
+}
+.botaoVereador{
+
+    width:100%;
+
+    padding:8px 10px;
+
+    margin-top:6px;
+
+    background:#e9ecef;
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    font-size:13px;
+
+    text-align:center;
+
+    word-wrap:break-word;
+
+}
+
+input{
+
+    width:100%;
+
+    padding:10px;
+
+    margin-top:10px;
+
+    margin-bottom:10px;
+
+}
+
+.itemFila{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    background:#e9ecef;
+
+    border-radius:8px;
+
+    padding:8px;
+
+    margin-top:6px;
+
+}
+
+.itemFila button{
+
+    width:30px;
+
+    height:30px;
+
+    margin-left:4px;
+
+}

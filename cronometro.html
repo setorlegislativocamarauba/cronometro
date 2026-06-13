@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>
+Controle de Uso da Palavra
+</title>
+
+<link
+rel="stylesheet"
+href="controle.css">
+
+</head>
+
+<body>
+
+<!-- MODOS -->
+
+<div class="modosSessao">
+
+    <button id="modoDiscussao">
+        📄 Discussão
+    </button>
+
+    <button id="modoConsideracoes">
+        🎤 Considerações Finais
+    </button>
+
+    <button id="modoTribuna">
+        🏛 Tribuna Livre
+    </button>
+
+</div>
+
+<div id="tituloSessao">
+    CONSIDERAÇÕES FINAIS
+</div>
+
+<!-- CONTAINER PRINCIPAL -->
+
+<div class="container">
+
+    <!-- COLUNA 1 -->
+
+    <div
+    class="coluna colunaEsquerda">
+
+        <div
+        class="painel"
+        id="painelEsquerdo">
+
+        </div>
+
+    </div>
+
+    <!-- COLUNA 2 -->
+
+    <div
+    class="coluna colunaCentro">
+
+        <div
+        class="painel"
+        id="painelCentro">
+
+        </div>
+
+    </div>
+
+    <!-- COLUNA 3 -->
+
+    <div
+    class="colunaPrincipal">
+
+        <div
+        class="painelPrincipal">
+
+            <div
+            class="tituloStatus">
+
+                USANDO A PALAVRA
+
+            </div>
+
+            <div id="oradorAtual">
+
+                AGUARDANDO INÍCIO
+
+            </div>
+
+            <div id="cronometro">
+
+                05:00
+
+            </div>
+
+            <div id="proximoOrador">
+
+                Próximo Orador: ---
+
+            </div>
+
+            <div id="mensagemTempo"></div>
+
+            <div id="historicoInfo"></div>
+
+            <div class="opcoes">
+
+                <button id="btnAlarme">
+                    🟢 Alarme
+                </button>
+
+                <button id="btnTempoExtra">
+                    🟢 Tempo Extra
+                </button>
+
+            </div>
+
+            <div class="acoes">
+
+                <button id="btnIniciar">
+                    ▶ Iniciar
+                </button>
+
+                <button id="btnPausar">
+                    ⏸ Pausar
+                </button>
+
+                <button id="btnRestaurar">
+                    ↺ Restaurar
+                </button>
+
+                <button id="btnEncerrar">
+                    ■ Encerrar
+                </button>
+
+                <button id="btnProximo">
+                    ⏭ Próximo
+                </button>
+
+                <button id="btnReplica">
+                    ↩ Réplica
+                </button>
+
+                <button id="btnTelao">
+                    🖥 Telão
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL DE RÉPLICA -->
+
+<div
+id="modalReplica"
+class="modal">
+
+    <div class="modalConteudo">
+
+        <h3>
+            Conceder Réplica
+        </h3>
+
+        <div id="listaReplica">
+
+        </div>
+
+        <div class="modalBotoes">
+
+            <button
+            id="btnAdicionarReplica">
+
+                Adicionar
+
+            </button>
+
+            <button
+            id="btnCancelarReplica">
+
+                Cancelar
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="controle.js"></script>
+
+</body>
+
+</html>

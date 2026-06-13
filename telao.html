@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>
+Telão - Cronômetro
+</title>
+
+<style>
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    font-family: Arial, sans-serif;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: white;
+    position: relative;
+}
+
+body::before{
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('Brasao_Uba.png') center center no-repeat;
+    background-size: contain;
+    opacity: 0.1;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.container-telao,
+.relogio-telao{
+    position: relative;
+    z-index: 1;
+}
+
+.container-telao{
+    text-align: center;
+    width: 100%;
+    padding: 40px;
+}
+
+.titulo-sessao-telao{
+    font-size: 60px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 140px;
+}
+
+.status-telao{
+    font-size: 60px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 80px;
+}
+
+.orador-atual-telao{
+    font-size: 70px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+}
+
+.cronometro-telao{
+    font-size: 200px;
+    font-weight: bold;
+    color: #0787d9;
+    margin-bottom: 40px;
+    font-family: Arial, sans-serif;
+	
+}
+
+.proximo-orador-telao{
+    font-size: 48px;
+    color: #888;
+    margin-top: 40px;
+}
+
+.relogio-telao{
+    position: fixed;
+    top: 10px;
+    right: 15px;
+    font-size: 30px;
+    color: #fff;
+    text-align: right;
+    line-height: 1.4;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="relogio-telao" id="relogioTelao"></div>
+
+<div class="container-telao">
+
+    <div class="titulo-sessao-telao" id="tituloSessaoTelao">
+        CONSIDERAÇÕES FINAIS
+    </div>
+
+    <div class="status-telao">
+        USANDO A PALAVRA:
+    </div>
+
+    <div class="orador-atual-telao" id="oradorAtualTelao">
+        AGUARDANDO INÍCIO
+    </div>
+
+    <div class="cronometro-telao" id="cronometroTelao">
+        05:00
+    </div>
+
+    <div class="proximo-orador-telao" id="proximoOradorTelao">
+        Próximo Orador: ---
+    </div>
+
+</div>
+
+<script>
+
+// Sincronizar com a aba principal usando localStorage
+setInterval(()=>{
+    
+    try{
+        const dados = JSON.parse(localStorage.getItem('estadoCronometro') || '{}');
+        
+        document.getElementById('tituloSessaoTelao').textContent = dados.tituloSessao || 'CONSIDERAÇÕES FINAIS';
+        document.getElementById('oradorAtualTelao').textContent = dados.oradorAtual || 'AGUARDANDO INÍCIO';
+        const cronEl = document.getElementById('cronometroTelao');
+        cronEl.textContent = dados.cronometro || '05:00';
+        cronEl.style.color = dados.cronometroCor || '#0787d9';
+        const proximoEl = document.getElementById('proximoOradorTelao');
+        if(dados.modoSessao === 'consideracoes'){
+            proximoEl.style.display = '';
+            proximoEl.textContent = dados.proximoOrador || 'Próximo Orador: ---';
+        } else {
+            proximoEl.style.display = 'none';
+        }
+        
+    } catch(e){
+        console.log('Erro ao sincronizar:', e);
+    }
+    
+}, 500);
+
+function atualizarRelogio(){
+    const agora = new Date();
+    const hh = String(agora.getHours()).padStart(2,'0');
+    const mm = String(agora.getMinutes()).padStart(2,'0');
+    const ss = String(agora.getSeconds()).padStart(2,'0');
+    const dd = String(agora.getDate()).padStart(2,'0');
+    const mo = String(agora.getMonth()+1).padStart(2,'0');
+    const yy = String(agora.getFullYear()).slice(-2);
+    document.getElementById('relogioTelao').innerHTML = hh+':'+mm+':'+ss+'<br>'+dd+'/'+mo+'/'+yy;
+}
+atualizarRelogio();
+setInterval(atualizarRelogio, 1000);
+
+</script>
+
+</body>
+
+</html>
