@@ -3,7 +3,19 @@
 
 <head>
 
+
 <meta charset="UTF-8">
+
+<!--
+Sistema desenvolvido por Diones Ferreira de Almeida, servidor da Câmara Municipal de Ubá/MG.
+
+Este projeto foi concebido com o objetivo de modernizar e padronizar o controle de tempo utilizado durante as sessões plenárias, proporcionando maior eficiência, confiabilidade e profissionalismo aos trabalhos legislativos.
+
+O desenvolvimento foi realizado utilizando o Visual Studio Code, com suporte de ferramentas de inteligência artificial aplicadas ao processo de programação.
+
+A utilização, adaptação e distribuição deste sistema são permitidas para câmaras municipais e demais órgãos públicos interessados. É vedada sua comercialização, total ou parcial.
+-->
+
 
 <meta
 name="viewport"
@@ -21,9 +33,14 @@ href="controle.css">
 
 <body>
 
+
 <!-- MODOS -->
 
 <div class="modosSessao">
+
+    <button id="modoTelaSimples">
+        🖼 Tela Simples
+    </button>
 
     <button id="modoDiscussao">
         📄 Discussão
@@ -102,7 +119,7 @@ href="controle.css">
 
             <div id="proximoOrador">
 
-                Próximo Orador: ---
+                Próximo(a) Orador(a): ---
 
             </div>
 
@@ -113,11 +130,11 @@ href="controle.css">
             <div class="opcoes">
 
                 <button id="btnAlarme">
-                    🟢 Alarme
+                    🟢 Alarme desligado
                 </button>
 
                 <button id="btnTempoExtra">
-                    🟢 Tempo Extra
+                    🟢 Tempo extra desligado
                 </button>
 
             </div>
@@ -132,10 +149,6 @@ href="controle.css">
                     ⏸ Pausar
                 </button>
 
-                <button id="btnRestaurar">
-                    ↺ Restaurar
-                </button>
-
                 <button id="btnEncerrar">
                     ■ Encerrar
                 </button>
@@ -144,8 +157,12 @@ href="controle.css">
                     ⏭ Próximo
                 </button>
 
-                <button id="btnReplica">
-                    ↩ Réplica
+                <button id="btnRetornar">
+                    ⏮ Retornar
+                </button>
+
+                <button id="btnRestaurar">
+                    ↺ Restaurar
                 </button>
 
                 <button id="btnTelao">
@@ -153,44 +170,6 @@ href="controle.css">
                 </button>
 
             </div>
-
-        </div>
-
-    </div>
-
-</div>
-
-<!-- MODAL DE RÉPLICA -->
-
-<div
-id="modalReplica"
-class="modal">
-
-    <div class="modalConteudo">
-
-        <h3>
-            Conceder Réplica
-        </h3>
-
-        <div id="listaReplica">
-
-        </div>
-
-        <div class="modalBotoes">
-
-            <button
-            id="btnAdicionarReplica">
-
-                Adicionar
-
-            </button>
-
-            <button
-            id="btnCancelarReplica">
-
-                Cancelar
-
-            </button>
 
         </div>
 

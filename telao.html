@@ -10,7 +10,7 @@ name="viewport"
 content="width=device-width, initial-scale=1.0">
 
 <title>
-Telão - Cronômetro
+Cronômetro - Câmara Municipal de Ubá
 </title>
 
 <style>
@@ -32,6 +32,9 @@ body{
     position: relative;
 }
 
+body.tela-simples-mode::before{
+    opacity: 0.20;
+}
 body::before{
     content: '';
     position: fixed;
@@ -55,44 +58,56 @@ body::before{
 .container-telao{
     text-align: center;
     width: 100%;
-    padding: 40px;
+    padding: 10px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100vh;
 }
 
 .titulo-sessao-telao{
-    font-size: 60px;
+    font-size: 48px;
     font-weight: bold;
     color: #fff;
-    margin-bottom: 140px;
+    margin-bottom: 60px;
 }
 
 .status-telao{
-    font-size: 60px;
+    font-size: 48px;
     font-weight: bold;
     color: #fff;
-    margin-bottom: 80px;
+    margin-bottom: 40px;
 }
 
 .orador-atual-telao{
-    font-size: 70px;
+    font-size: 64px;
     font-weight: bold;
     color: #fff;
-    margin-bottom: 40px;
+    margin-bottom: 30px;
     text-transform: uppercase;
+    line-height:1.2;
+}
+
+.orador-atual-telao .replica-subtitle{
+    display: block;
+    font-size: 32px;
+    font-weight: normal;
+    color: #aaa;
+    margin-top: 6px;
 }
 
 .cronometro-telao{
-    font-size: 200px;
+    font-size: 180px;
     font-weight: bold;
     color: #0787d9;
-    margin-bottom: 40px;
+    margin-bottom: 30px;
     font-family: Arial, sans-serif;
-	
 }
 
 .proximo-orador-telao{
-    font-size: 48px;
+    font-size: 36px;
     color: #888;
-    margin-top: 40px;
+    margin-top: 20px;
 }
 
 .relogio-telao{
@@ -107,9 +122,12 @@ body::before{
 
 </style>
 
+
 </head>
 
 <body>
+   
+    
 
 <div class="relogio-telao" id="relogioTelao"></div>
 
@@ -119,20 +137,33 @@ body::before{
         CONSIDERAÇÕES FINAIS
     </div>
 
-    <div class="status-telao">
-        USANDO A PALAVRA:
+    <div id="conteudoNormalTelao">
+
+        <div class="status-telao">
+            USANDO A PALAVRA:
+        </div>
+
+        <div class="orador-atual-telao" id="oradorAtualTelao">
+            AGUARDANDO INÍCIO
+        </div>
+
+        <div class="cronometro-telao" id="cronometroTelao">
+            05:00
+        </div>
+
+        <div class="proximo-orador-telao" id="proximoOradorTelao">
+            Próximo Orador: ---
+        </div>
+
     </div>
 
-    <div class="orador-atual-telao" id="oradorAtualTelao">
-        AGUARDANDO INÍCIO
-    </div>
+    <!-- Conteúdo da Tela Simples (inicialmente oculto) -->
+    <div id="conteudoSimplesTelao" style="display:none;">
 
-    <div class="cronometro-telao" id="cronometroTelao">
-        05:00
-    </div>
+        <div style="font-size:140px;font-weight:bold;color:#fff;margin-bottom:60px;">
+            Câmara Municipal de Ubá
+        </div>
 
-    <div class="proximo-orador-telao" id="proximoOradorTelao">
-        Próximo Orador: ---
     </div>
 
 </div>
@@ -144,9 +175,35 @@ setInterval(()=>{
     
     try{
         const dados = JSON.parse(localStorage.getItem('estadoCronometro') || '{}');
+        const modo = dados.modoSessao || 'consideracoes';
         
         document.getElementById('tituloSessaoTelao').textContent = dados.tituloSessao || 'CONSIDERAÇÕES FINAIS';
-        document.getElementById('oradorAtualTelao').textContent = dados.oradorAtual || 'AGUARDANDO INÍCIO';
+        
+        // Mostrar/esconder conteúdo da Tela Simples
+        const normalContent = document.getElementById('conteudoNormalTelao');
+        const simpleContent = document.getElementById('conteudoSimplesTelao');
+        const bodyEl = document.body;
+        
+        if(modo === 'tela_simples'){
+            normalContent.style.display = 'none';
+            simpleContent.style.display = 'block';
+            bodyEl.classList.add('tela-simples-mode');
+            document.getElementById('tituloSessaoTelao').style.display = 'none';
+        } else {
+            normalContent.style.display = 'block';
+            simpleContent.style.display = 'none';
+            bodyEl.classList.remove('tela-simples-mode');
+            document.getElementById('tituloSessaoTelao').style.display = '';
+        }
+        
+        const oradorAtualEl = document.getElementById('oradorAtualTelao');
+        const oradorTexto = dados.oradorAtual || 'AGUARDANDO INÍCIO';
+        const replicaMatch = oradorTexto.match(/^(.+)\s*\(RÉPLICA DE\s*(.+)\)$/i);
+        if(replicaMatch){
+            oradorAtualEl.innerHTML = replicaMatch[1] + '<span class="replica-subtitle">RÉPLICA DE ' + replicaMatch[2] + '</span>';
+        } else {
+            oradorAtualEl.textContent = oradorTexto;
+        }
         const cronEl = document.getElementById('cronometroTelao');
         cronEl.textContent = dados.cronometro || '05:00';
         cronEl.style.color = dados.cronometroCor || '#0787d9';
