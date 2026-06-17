@@ -341,6 +341,17 @@ function carregarConsideracoes(){
     atualizarFilaConsideracoes();
     atualizarHistoricoOradores();
 
+    // Garantir que o orador atual esteja zerado ao carregar considerações
+    if(!oradorAtualConsideracoes && filaConsideracoes.length === 0){
+        document.getElementById("oradorAtual").textContent = "AGUARDANDO INÍCIO";
+        document.getElementById("oradorAtual").removeAttribute("data-fulltext");
+        pausarCronometro();
+        tempoInicial = 300;
+        tempoRestante = 300;
+        atualizarCronometro();
+        salvarEstadoTelao();
+    }
+
 }
 
 function carregarTribuna(){
@@ -419,6 +430,17 @@ function carregarTribuna(){
 
     // Adicionar listener para registrar convidado
     document.getElementById("btnRegistrarConvidado").addEventListener("click", registrarConvidado);
+
+    // Garantir que o orador atual esteja zerado ao carregar a tribuna
+    if(!oradorTribunaLivre){
+        document.getElementById("oradorAtual").textContent = "AGUARDANDO INÍCIO";
+        document.getElementById("oradorAtual").removeAttribute("data-fulltext");
+        pausarCronometro();
+        tempoInicial = 300;
+        tempoRestante = 300;
+        atualizarCronometro();
+        salvarEstadoTelao();
+    }
 
 }
 
@@ -980,6 +1002,8 @@ function encerrarCronometro(){
             // Sem mais réplicas, apenas pausar (não avançar automaticamente)
             atualizarFilaConsideracoes();
             salvarEstadoTelao();
+            document.getElementById("oradorAtual").textContent = "AGUARDANDO INÍCIO";
+            document.getElementById("oradorAtual").removeAttribute("data-fulltext");
             return;
         }
 
@@ -1034,6 +1058,10 @@ function encerrarCronometro(){
             // Sem réplicas, apenas pausar
             atualizarListaEncerrados();
             salvarEstadoTelao();
+            document.getElementById("oradorAtual").textContent = "AGUARDANDO INÍCIO";
+            document.getElementById("oradorAtual").removeAttribute("data-fulltext");
+            oradorAtualConsideracoes = "";
+            oradorTribunaLivre = null;
             return;
         } else {
             adicionarAoHistorico(oradorAtual, false);
@@ -1047,10 +1075,12 @@ function encerrarCronometro(){
     .getElementById("oradorAtual")
     .textContent =
     "AGUARDANDO INÍCIO";
+    document
+    .getElementById("oradorAtual")
+    .removeAttribute("data-fulltext");
 
-    if(modoSessao === "tribuna"){
-        oradorTribunaLivre = null;
-    }
+    oradorAtualConsideracoes = "";
+    oradorTribunaLivre = null;
 
     salvarEstadoTelao();
 
