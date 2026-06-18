@@ -83,6 +83,7 @@ let oradorTribunaLivre = null;
 let filaReplicas = [];
 let replicasConcluidasAtual = [];
 let historicoTribuna = [];
+let filaConvidadosTribuna = [];
 
 /* ==========================
 PILHA DE RETORNO
@@ -442,6 +443,9 @@ function carregarTribuna(){
         salvarEstadoTelao();
     }
 
+    // Atualizar fila de convidados (caso existam pendentes)
+    atualizarFilaConvidadosTribuna();
+
 }
 
 function registrarConvidado(){
@@ -454,17 +458,14 @@ function registrarConvidado(){
         return;
     }
 
-    pausarCronometro();
+    // Verificar se já está na fila
+    if(filaConvidadosTribuna.includes(nome)){
+        alert("Este orador já está na fila");
+        return;
+    }
 
-    oradorTribunaLivre = nome;
-
-    document.getElementById("oradorAtual").textContent = nome.toUpperCase();
-
-    tempoInicial = 600;
-    tempoRestante = 600;
-
-    atualizarCronometro();
-    salvarEstadoTelao();
+    // Adicionar à fila de convidados
+    filaConvidadosTribuna.push(nome);
 
     nomeInput.value = "";
 
@@ -473,7 +474,71 @@ function registrarConvidado(){
         historicoTribuna.push(nome);
     }
     atualizarHistoricoTribuna();
+    atualizarFilaConvidadosTribuna();
 
+}
+
+function atualizarFilaConvidadosTribuna(){
+    const div = document.getElementById("listaComentarios");
+    if(!div){
+        return;
+    }
+
+    // Remover botões de convidados existentes (manter os vereadores)
+    const botoesConvidados = div.querySelectorAll(".botaoConvidadoTribuna");
+    botoesConvidados.forEach(btn => btn.remove());
+
+    // Separador se houver convidados
+    if(filaConvidadosTribuna.length > 0){
+        const sep = document.createElement("hr");
+        sep.style.cssText = "margin:10px 0;border-color:#555;";
+        sep.className = "separadorConvidados";
+        // Verificar se já existe separador
+        const sepExistente = div.querySelector(".separadorConvidados");
+        if(!sepExistente){
+            div.appendChild(sep);
+        }
+
+        // Título da seção de convidados
+        const tituloExistente = div.querySelector(".tituloConvidados");
+        if(!tituloExistente){
+            const titulo = document.createElement("div");
+            titulo.className = "tituloConvidados";
+            titulo.textContent = "Oradores Convidados:";
+            titulo.style.cssText = "font-size:13px;font-weight:bold;color:#000;margin:8px 0 4px;text-align:center;";
+            div.appendChild(titulo);
+        }
+    }
+
+    // Adicionar botões de convidados (um abaixo do outro)
+    filaConvidadosTribuna.forEach((nome, index) => {
+        const btn = document.createElement("button");
+        btn.className = "botaoVereador botaoConvidadoTribuna";
+        btn.textContent = nome;
+        btn.style.cssText = "background:#4caf50;color:white;width:100%;";
+        btn.onclick = function(){
+            selecionarConvidadoTribuna(nome, index);
+        };
+        div.appendChild(btn);
+    });
+}
+
+function selecionarConvidadoTribuna(nome, index){
+    pausarCronometro();
+
+    oradorTribunaLivre = nome;
+
+    document.getElementById("oradorAtual").textContent = nome.toUpperCase();
+
+    tempoInicial = 60;
+    tempoRestante = 60;
+
+    atualizarCronometro();
+    salvarEstadoTelao();
+
+    // Remover da fila
+    filaConvidadosTribuna.splice(index, 1);
+    atualizarFilaConvidadosTribuna();
 }
 
 function atualizarHistoricoTribuna(){
@@ -1254,6 +1319,22 @@ function inscreverVereador(
 
 }
 
+function selecionarOradorDaFila(nome){
+    pausarCronometro();
+
+    oradorAtualConsideracoes = nome;
+
+    document.getElementById("oradorAtual").textContent = nome.toUpperCase();
+    document.getElementById("oradorAtual").removeAttribute("data-fulltext");
+
+    tempoInicial = 300;
+    tempoRestante = 300;
+
+    atualizarCronometro();
+    atualizarFilaConsideracoes();
+    salvarEstadoTelao();
+}
+
 function atualizarFilaConsideracoes(){
 
     const div =
@@ -1358,9 +1439,20 @@ function atualizarFilaConsideracoes(){
         item.className =
         "itemFila";
 
+        // Destacar se este nome é o orador atual
+        const isCurrentSpeaker = (currentSpeaker === nome.toUpperCase());
+        if(isCurrentSpeaker){
+            item.style.borderLeft = "4px solid #4caf50";
+            item.style.background = "#e8f5e9";
+        }
+
         item.innerHTML = `
 
-            <span>
+            <span
+                class="nomeOradorClicavel"
+                onclick="selecionarOradorDaFila('${nome}')"
+                title="Clique para selecionar ${nome}"
+                style="cursor:pointer;${isCurrentSpeaker?'font-weight:bold;':''}">
 
                 ${index+1}º
                 ${nome}
