@@ -632,3 +632,22 @@ input{
     border-left:3px solid #6a1b9a;
     margin-top:2px;
 }
+
+/* SELECTED ITEM (CLICKABLE FILA) */
+.itemFila.selected,
+.itemReplicaNaFila.selected{
+    background:#cce5ff !important;
+    border:2px solid #2b7cd3 !important;
+    cursor:pointer;
+}
+
+.itemFila,
+.itemReplicaNaFila{
+    cursor:pointer;
+    transition:background 0.15s;
+}
+
+.itemFila:hover,
+.itemReplicaNaFila:hover{
+    filter:brightness(0.95);
+}

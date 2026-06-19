@@ -83,93 +83,7 @@ let oradorTribunaLivre = null;
 let filaReplicas = [];
 let replicasConcluidasAtual = [];
 let historicoTribuna = [];
-let filaConvidadosTribuna = [];
-
-/* ==========================
-PILHA DE RETORNO
-Salva estado completo antes de "Próximo" para permitir "Retornar"
-========================== */
-let pilhaRetorno = [];
-
-function salvarEstadoParaRetorno(){
-    const currentSpeaker = obterTextoOradorAtual();
-    pilhaRetorno.push({
-        // Estado completo do orador atual
-        oradorAtual: currentSpeaker,
-        oradorAtualConsideracoes: oradorAtualConsideracoes,
-        replicasConcluidasAtual: [...replicasConcluidasAtual],
-        replicasPorOrador: JSON.parse(JSON.stringify(replicasPorOrador)),
-        tempoInicial: tempoInicial,
-        tempoRestante: tempoRestante
-    });
-}
-
-function retornarOradorAnterior(){
-    if(pilhaRetorno.length === 0 || historicoOradores.length === 0){
-        return;
-    }
-
-    pausarCronometro();
-
-    const estado = pilhaRetorno.pop();
-
-    // Pegar o último orador do histórico (foi movido para lá pelo "Próximo")
-    const ultimoEntry = historicoOradores[historicoOradores.length - 1];
-    let nomeAnterior;
-    let replicasAnteriores = [];
-
-    if(typeof ultimoEntry === 'object' && ultimoEntry.nome){
-        nomeAnterior = ultimoEntry.nome;
-        replicasAnteriores = ultimoEntry.replicas || [];
-    } else {
-        nomeAnterior = ultimoEntry;
-    }
-
-    // Remover do histórico
-    historicoOradores.pop();
-
-    // Remover de oradoresEncerrados
-    const idxEncerrado = oradoresEncerrados.indexOf(nomeAnterior);
-    if(idxEncerrado !== -1){
-        oradoresEncerrados.splice(idxEncerrado, 1);
-    }
-
-    // Colocar o orador anterior de volta no início da fila
-    filaConsideracoes.unshift(nomeAnterior);
-
-    // Restaurar réplicas que tinha antes de ser encerrado
-    if(replicasAnteriores.length > 0 && !replicasPorOrador[nomeAnterior]){
-        replicasPorOrador[nomeAnterior] = [];
-    }
-    if(replicasAnteriores.length > 0){
-        replicasAnteriores.forEach(repNome => {
-            const jaTem = replicasPorOrador[nomeAnterior].some(r => r.nome === repNome);
-            if(!jaTem){
-                replicasPorOrador[nomeAnterior].push({
-                    nome: repNome,
-                    tempo: 120
-                });
-            }
-        });
-    }
-
-    // Restaurar réplicas concluídas ao estado anterior ao "Próximo"
-    replicasConcluidasAtual = estado.replicasConcluidasAtual || [];
-
-    // Restaurar o orador anterior como atual
-    oradorAtualConsideracoes = nomeAnterior;
-    document.getElementById("oradorAtual").textContent = nomeAnterior.toUpperCase();
-    document.getElementById("oradorAtual").removeAttribute("data-fulltext");
-
-    tempoInicial = 300;
-    tempoRestante = 300;
-
-    atualizarCronometro();
-    atualizarFilaConsideracoes();
-    atualizarListaEncerrados();
-    atualizarHistoricoOradores();
-    salvarEstadoTelao();
-}
+let selectedSpeaker = null;
 
 /* ==========================
 VEREADORES
@@ -342,17 +256,6 @@ function carregarConsideracoes(){
     atualizarFilaConsideracoes();
     atualizarHistoricoOradores();
 
-    // Garantir que o orador atual esteja zerado ao carregar considerações
-    if(!oradorAtualConsideracoes && filaConsideracoes.length === 0){
-        document.getElementById("oradorAtual").textContent = "AGUARDANDO INÍCIO";
-        document.getElementById("oradorAtual").removeAttribute("data-fulltext");
-        pausarCronometro();
-        tempoInicial = 300;
-        tempoRestante = 300;
-        atualizarCronometro();
-        salvarEstadoTelao();
-    }
-
 }
 
 function carregarTribuna(){
@@ -425,26 +328,14 @@ function carregarTribuna(){
 
         };
 
-        lista.appendChild(btn);
+        lista.appendChild(
+            btn
+        );
 
     });
 
     // Adicionar listener para registrar convidado
     document.getElementById("btnRegistrarConvidado").addEventListener("click", registrarConvidado);
-
-    // Garantir que o orador atual esteja zerado ao carregar a tribuna
-    if(!oradorTribunaLivre){
-        document.getElementById("oradorAtual").textContent = "AGUARDANDO INÍCIO";
-        document.getElementById("oradorAtual").removeAttribute("data-fulltext");
-        pausarCronometro();
-        tempoInicial = 300;
-        tempoRestante = 300;
-        atualizarCronometro();
-        salvarEstadoTelao();
-    }
-
-    // Atualizar fila de convidados (caso existam pendentes)
-    atualizarFilaConvidadosTribuna();
 
 }
 
@@ -458,14 +349,17 @@ function registrarConvidado(){
         return;
     }
 
-    // Verificar se já está na fila
-    if(filaConvidadosTribuna.includes(nome)){
-        alert("Este orador já está na fila");
-        return;
-    }
+    pausarCronometro();
 
-    // Adicionar à fila de convidados
-    filaConvidadosTribuna.push(nome);
+    oradorTribunaLivre = nome;
+
+    document.getElementById("oradorAtual").textContent = nome.toUpperCase();
+
+    tempoInicial = 600;
+    tempoRestante = 600;
+
+    atualizarCronometro();
+    salvarEstadoTelao();
 
     nomeInput.value = "";
 
@@ -474,71 +368,7 @@ function registrarConvidado(){
         historicoTribuna.push(nome);
     }
     atualizarHistoricoTribuna();
-    atualizarFilaConvidadosTribuna();
 
-}
-
-function atualizarFilaConvidadosTribuna(){
-    const div = document.getElementById("listaComentarios");
-    if(!div){
-        return;
-    }
-
-    // Remover botões de convidados existentes (manter os vereadores)
-    const botoesConvidados = div.querySelectorAll(".botaoConvidadoTribuna");
-    botoesConvidados.forEach(btn => btn.remove());
-
-    // Separador se houver convidados
-    if(filaConvidadosTribuna.length > 0){
-        const sep = document.createElement("hr");
-        sep.style.cssText = "margin:10px 0;border-color:#555;";
-        sep.className = "separadorConvidados";
-        // Verificar se já existe separador
-        const sepExistente = div.querySelector(".separadorConvidados");
-        if(!sepExistente){
-            div.appendChild(sep);
-        }
-
-        // Título da seção de convidados
-        const tituloExistente = div.querySelector(".tituloConvidados");
-        if(!tituloExistente){
-            const titulo = document.createElement("div");
-            titulo.className = "tituloConvidados";
-            titulo.textContent = "Oradores Convidados:";
-            titulo.style.cssText = "font-size:13px;font-weight:bold;color:#000;margin:8px 0 4px;text-align:center;";
-            div.appendChild(titulo);
-        }
-    }
-
-    // Adicionar botões de convidados (um abaixo do outro)
-    filaConvidadosTribuna.forEach((nome, index) => {
-        const btn = document.createElement("button");
-        btn.className = "botaoVereador botaoConvidadoTribuna";
-        btn.textContent = nome;
-        btn.style.cssText = "background:#4caf50;color:white;width:100%;";
-        btn.onclick = function(){
-            selecionarConvidadoTribuna(nome, index);
-        };
-        div.appendChild(btn);
-    });
-}
-
-function selecionarConvidadoTribuna(nome, index){
-    pausarCronometro();
-
-    oradorTribunaLivre = nome;
-
-    document.getElementById("oradorAtual").textContent = nome.toUpperCase();
-
-    tempoInicial = 60;
-    tempoRestante = 60;
-
-    atualizarCronometro();
-    salvarEstadoTelao();
-
-    // Remover da fila
-    filaConvidadosTribuna.splice(index, 1);
-    atualizarFilaConvidadosTribuna();
 }
 
 function atualizarHistoricoTribuna(){
@@ -618,11 +448,6 @@ function selecionarModo(
         "btnProximo"
     );
 
-    const btnRetornarEl =
-    document.getElementById(
-        "btnRetornar"
-    );
-
     if(
         modo ===
         "discussao"
@@ -638,7 +463,6 @@ function selecionarModo(
 
         proximoEl.style.display = "none";
         btnProximoEl.style.display = "none";
-        btnRetornarEl.style.display = "none";
 
         // Mostrar container ao sair da tela simples
         const container = document.querySelector(".container");
@@ -665,7 +489,6 @@ function selecionarModo(
 
         proximoEl.style.display = "";
         btnProximoEl.style.display = "";
-        btnRetornarEl.style.display = "";
 
         // Mostrar container ao sair da tela simples
         const container = document.querySelector(".container");
@@ -692,7 +515,6 @@ function selecionarModo(
 
         proximoEl.style.display = "none";
         btnProximoEl.style.display = "none";
-        btnRetornarEl.style.display = "none";
 
         // Mostrar container ao sair da tela simples
         const container = document.querySelector(".container");
@@ -719,7 +541,6 @@ function selecionarModo(
 
         proximoEl.style.display = "none";
         btnProximoEl.style.display = "none";
-        btnRetornarEl.style.display = "none";
 
         pausarCronometro();
 
@@ -1033,10 +854,8 @@ function encerrarCronometro(){
         if(replicaMatch){
             oradorOriginal = replicaMatch[2];
 
-            if(!replicasConcluidasAtual.includes(oradorAtual)){
-                // Registrar réplica como concluída (histórico será atualizado ao avançar orador)
-                replicasConcluidasAtual.push(oradorAtual);
-            }
+            // Registrar réplica como concluída (histórico será atualizado ao avançar orador)
+            replicasConcluidasAtual.push(oradorAtual);
 
             // Verificar se há mais réplicas para este orador (sem removê-las da lista)
             const chaveReplicasEnc = buscarChaveReplicas(oradorOriginal);
@@ -1067,8 +886,6 @@ function encerrarCronometro(){
             // Sem mais réplicas, apenas pausar (não avançar automaticamente)
             atualizarFilaConsideracoes();
             salvarEstadoTelao();
-            document.getElementById("oradorAtual").textContent = "AGUARDANDO INÍCIO";
-            document.getElementById("oradorAtual").removeAttribute("data-fulltext");
             return;
         }
 
@@ -1123,10 +940,6 @@ function encerrarCronometro(){
             // Sem réplicas, apenas pausar
             atualizarListaEncerrados();
             salvarEstadoTelao();
-            document.getElementById("oradorAtual").textContent = "AGUARDANDO INÍCIO";
-            document.getElementById("oradorAtual").removeAttribute("data-fulltext");
-            oradorAtualConsideracoes = "";
-            oradorTribunaLivre = null;
             return;
         } else {
             adicionarAoHistorico(oradorAtual, false);
@@ -1140,12 +953,10 @@ function encerrarCronometro(){
     .getElementById("oradorAtual")
     .textContent =
     "AGUARDANDO INÍCIO";
-    document
-    .getElementById("oradorAtual")
-    .removeAttribute("data-fulltext");
 
-    oradorAtualConsideracoes = "";
-    oradorTribunaLivre = null;
+    if(modoSessao === "tribuna"){
+        oradorTribunaLivre = null;
+    }
 
     salvarEstadoTelao();
 
@@ -1222,6 +1033,32 @@ btnIniciar.addEventListener(
     "click",
     function(){
         ativarAudioContexto();
+
+        // Se há um orador selecionado manualmente, iniciar por ele
+        if(selectedSpeaker && modoSessao === "consideracoes"){
+            if(selectedSpeaker.tipo === "orador"){
+                // Iniciar o orador selecionado
+                pausarCronometro();
+                const nome = selectedSpeaker.nome;
+                oradorAtualConsideracoes = nome;
+                document.getElementById("oradorAtual")
+                    .textContent = nome.toUpperCase();
+                document.getElementById("oradorAtual")
+                    .removeAttribute("data-fulltext");
+                tempoInicial = 300;
+                tempoRestante = 300;
+                atualizarCronometro();
+                atualizarFilaConsideracoes();
+                salvarEstadoTelao();
+                clearSelectedSpeaker();
+            } else if(selectedSpeaker.tipo === "replica"){
+                // Iniciar a réplica selecionada
+                iniciarReplica(selectedSpeaker.nomeOriginal, selectedSpeaker.indexReplica);
+                clearSelectedSpeaker();
+                return; // iniciarReplica já chama iniciarCronometro
+            }
+        }
+
         iniciarCronometro();
     }
 );
@@ -1254,24 +1091,6 @@ btnAlarme.addEventListener(
 btnTelao.addEventListener(
     "click",
     abrirTelao
-);
-
-const btnRetornar = document.getElementById("btnRetornar");
-
-btnRetornar.addEventListener(
-    "click",
-    ()=>{
-
-        if(
-            modoSessao ===
-            "consideracoes"
-        ){
-
-            retornarOradorAnterior();
-
-        }
-
-    }
 );
 
 btnProximo.addEventListener(
@@ -1319,20 +1138,29 @@ function inscreverVereador(
 
 }
 
-function selecionarOradorDaFila(nome){
-    pausarCronometro();
+function clearSelectedSpeaker(){
+    selectedSpeaker = null;
+    // Remove visual selection from all items
+    document.querySelectorAll(".itemFila.selected, .itemReplicaNaFila.selected").forEach(el => {
+        el.classList.remove("selected");
+    });
+}
 
-    oradorAtualConsideracoes = nome;
+function selecionarItemFila(tipo, nome, nomeOriginal, indexReplica, element){
+    clearSelectedSpeaker();
 
-    document.getElementById("oradorAtual").textContent = nome.toUpperCase();
-    document.getElementById("oradorAtual").removeAttribute("data-fulltext");
+    if(tipo === "orador"){
+        selectedSpeaker = { tipo: "orador", nome: nome };
+    } else if(tipo === "replica"){
+        selectedSpeaker = { tipo: "replica", nome: nome, nomeOriginal: nomeOriginal, indexReplica: indexReplica };
+    }
 
-    tempoInicial = 300;
-    tempoRestante = 300;
-
-    atualizarCronometro();
-    atualizarFilaConsideracoes();
-    salvarEstadoTelao();
+    // Visual highlight - mark the clicked element
+    const allItems = document.querySelectorAll(".itemFila, .itemReplicaNaFila");
+    allItems.forEach(el => el.classList.remove("selected"));
+    if(element){
+        element.classList.add("selected");
+    }
 }
 
 function atualizarFilaConsideracoes(){
@@ -1348,82 +1176,26 @@ function atualizarFilaConsideracoes(){
 
     div.innerHTML = "";
 
+    // Se há orador ativo, ele está em queue[0], próximo é queue[1]
     const currentSpeaker = obterTextoOradorAtual();
 
     const isSpeaking =
     currentSpeaker !== "AGUARDANDO INÍCIO";
 
-    // Calcular o próximo orador considerando réplicas pendentes
-    let proximoTexto = "Próximo Orador: ---";
-
-    if(isSpeaking){
-        // Verificar se o orador atual é uma réplica
-        const replicaMatch = currentSpeaker.match(/^(.+)\s*\(RÉPLICA DE\s*(.+)\)$/i);
-
-        if(replicaMatch){
-            // Orador atual é uma réplica - verificar se há mais réplicas para o mesmo orador
-            const oradorOriginal = replicaMatch[2];
-            const chaveReplicas = buscarChaveReplicas(oradorOriginal);
-            const replicas = chaveReplicas ? replicasPorOrador[chaveReplicas] : null;
-
-            let encontrouProximaReplica = false;
-            if(replicas && replicas.length > 0){
-                const proximaReplica = replicas.find(r => {
-                    const fullText = r.nome.toUpperCase() + " (RÉPLICA DE " + oradorOriginal.toUpperCase() + ")";
-                    // Excluir a réplica que está falando agora (não está concluída mas é a atual)
-                    return !replicasConcluidasAtual.includes(fullText) && fullText !== currentSpeaker;
-                });
-                if(proximaReplica){
-                    proximoTexto = "Próximo: " + proximaReplica.nome + " (Réplica)";
-                    encontrouProximaReplica = true;
-                }
-            }
-
-            // Se não há mais réplicas, mostrar o próximo orador principal
-            if(!encontrouProximaReplica){
-                const nextIndex = 1;
-                proximoTexto = filaConsideracoes.length > nextIndex
-                    ? "Próximo Orador: " + filaConsideracoes[nextIndex]
-                    : "Próximo Orador: ---";
-            }
-        } else {
-            // Orador atual é um orador principal - verificar se tem réplicas pendentes
-            const chaveReplicas = buscarChaveReplicas(currentSpeaker);
-            const replicas = chaveReplicas ? replicasPorOrador[chaveReplicas] : null;
-
-            let encontrouProximaReplica = false;
-            if(replicas && replicas.length > 0){
-                const proximaReplica = replicas.find(r => {
-                    const fullText = r.nome.toUpperCase() + " (RÉPLICA DE " + currentSpeaker.toUpperCase() + ")";
-                    return !replicasConcluidasAtual.includes(fullText);
-                });
-                if(proximaReplica){
-                    proximoTexto = "Próximo: " + proximaReplica.nome + " (Réplica)";
-                    encontrouProximaReplica = true;
-                }
-            }
-
-            // Se não há réplicas, mostrar o próximo orador principal
-            if(!encontrouProximaReplica){
-                const nextIndex = 1;
-                proximoTexto = filaConsideracoes.length > nextIndex
-                    ? "Próximo Orador: " + filaConsideracoes[nextIndex]
-                    : "Próximo Orador: ---";
-            }
-        }
-    } else {
-        // Ninguém falando - próximo é o primeiro da fila
-        proximoTexto = filaConsideracoes.length > 0
-            ? "Próximo Orador: " + filaConsideracoes[0]
-            : "Próximo Orador: ---";
-    }
+    const nextIndex = isSpeaking ? 1 : 0;
 
     document
     .getElementById(
         "proximoOrador"
     )
     .textContent =
-    proximoTexto;
+
+    filaConsideracoes.length > nextIndex
+
+    ? "Próximo Orador: " +
+    filaConsideracoes[nextIndex]
+
+    : "Próximo Orador: ---";
 
     filaConsideracoes.forEach(
         (nome,index)=>{
@@ -1439,20 +1211,15 @@ function atualizarFilaConsideracoes(){
         item.className =
         "itemFila";
 
-        // Destacar se este nome é o orador atual
-        const isCurrentSpeaker = (currentSpeaker === nome.toUpperCase());
-        if(isCurrentSpeaker){
-            item.style.borderLeft = "4px solid #4caf50";
-            item.style.background = "#e8f5e9";
-        }
+        item.onclick = function(e){
+            // Ignore clicks on buttons inside the item
+            if(e.target.tagName === "BUTTON") return;
+            selecionarItemFila("orador", nome, null, null, item);
+        };
 
         item.innerHTML = `
 
-            <span
-                class="nomeOradorClicavel"
-                onclick="selecionarOradorDaFila('${nome}')"
-                title="Clique para selecionar ${nome}"
-                style="cursor:pointer;${isCurrentSpeaker?'font-weight:bold;':''}">
+            <span>
 
                 ${index+1}º
                 ${nome}
@@ -1488,7 +1255,7 @@ function atualizarFilaConsideracoes(){
                 <button class="btnMais"
                 onclick="
                 abrirModalSelecionarVereador(
-                '${nome}'
+                    '${nome}'
                 )"
                 title="Adicionar réplica para ${nome}">
 
@@ -1508,6 +1275,12 @@ function atualizarFilaConsideracoes(){
             replicas.forEach((replica, repIndex) => {
                 const repItem = document.createElement("div");
                 repItem.className = "itemReplicaNaFila";
+
+                repItem.onclick = function(e){
+                    // Ignore clicks on buttons inside the item
+                    if(e.target.tagName === "BUTTON") return;
+                    selecionarItemFila("replica", replica.nome, nome, repIndex, repItem);
+                };
 
                 repItem.innerHTML = `
                     <span>
@@ -1581,9 +1354,6 @@ function descerOrador(
 
 function chamarProximoOrador(){
 
-    // Salvar estado atual para permitir "Retornar"
-    salvarEstadoParaRetorno();
-
     if(
         filaConsideracoes.length === 0
     ){
@@ -1626,16 +1396,12 @@ function chamarProximoOrador(){
     const replicaMatch = currentSpeaker.match(/^(.+)\s*\(RÉPLICA DE\s*(.+)\)$/i);
 
     if(replicaMatch){
-        // Orador atual é uma réplica
-
-    if(!replicasConcluidasAtual.includes(currentSpeaker)){
-            // Registrar réplica como concluída
-            replicasConcluidasAtual.push(currentSpeaker);
-        }
+        // Orador atual é uma réplica - registrar como concluída
+        replicasConcluidasAtual.push(currentSpeaker);
 
         const oradorOriginal = replicaMatch[2];
 
-        // Verificar se há mais réplicas para este orador
+        // Verificar se há mais réplicas para este orador (ainda não concluídas)
         const chaveReplicasEnc = buscarChaveReplicas(oradorOriginal);
         const replicas = chaveReplicasEnc ? replicasPorOrador[chaveReplicasEnc] : null;
         if(replicas && replicas.length > 0){
@@ -1665,30 +1431,23 @@ function chamarProximoOrador(){
             }
         }
 
-        // Sem mais réplicas, avançar para o próximo orador principal
-        // (cai no fluxo normal abaixo)
-    }
-
-    // Verificar se o orador atual (principal) tem réplicas pendentes
-    const oradorAtualNome = currentSpeaker;
-    const chaveReplicasPending = buscarChaveReplicas(oradorAtualNome);
-    const replicasPending = chaveReplicasPending ? replicasPorOrador[chaveReplicasPending] : null;
-
-        if(replicasPending && replicasPending.length > 0){
-        // Encontrar a primeira réplica que ainda não foi concluída
-        const proximaReplica = replicasPending.find(r => {
-            const fullText = r.nome.toUpperCase() + " (RÉPLICA DE " + oradorAtualNome.toUpperCase() + ")";
-            // Excluir a réplica que está falando agora (não está concluída mas é a atual)
-            return !replicasConcluidasAtual.includes(fullText) && fullText !== currentSpeaker;
-        });
-        if(proximaReplica){
+        // Sem mais réplicas, avança para remover o orador principal (cai no fluxo normal abaixo)
+    } else {
+        // Orador atual é um orador principal - verificar se há réplicas pendentes
+        const oradorPrincipalNome = currentSpeaker;
+        const chaveReplicasOrador = buscarChaveReplicas(oradorPrincipalNome);
+        const replicasPendentes = chaveReplicasOrador ? replicasPorOrador[chaveReplicasOrador] : null;
+        
+        if(replicasPendentes && replicasPendentes.length > 0){
+            // Há réplicas pendentes - avançar para a primeira
+            const primeiraReplica = replicasPendentes[0];
             document.getElementById("oradorAtual")
-            .innerHTML = proximaReplica.nome.toUpperCase() + "<br><small>RÉPLICA DE " + oradorAtualNome.toUpperCase() + "</small>";
+            .innerHTML = primeiraReplica.nome.toUpperCase() + "<br><small>RÉPLICA DE " + oradorPrincipalNome.toUpperCase() + "</small>";
             document.getElementById("oradorAtual")
-            .setAttribute("data-fulltext", proximaReplica.nome.toUpperCase() + " (RÉPLICA DE " + oradorAtualNome.toUpperCase() + ")");
+            .setAttribute("data-fulltext", primeiraReplica.nome.toUpperCase() + " (RÉPLICA DE " + oradorPrincipalNome.toUpperCase() + ")");
 
-            tempoInicial = proximaReplica.tempo;
-            tempoRestante = proximaReplica.tempo;
+            tempoInicial = primeiraReplica.tempo;
+            tempoRestante = primeiraReplica.tempo;
 
             pausarCronometro();
             atualizarCronometro();
@@ -1713,15 +1472,10 @@ function chamarProximoOrador(){
         adicionarAoHistorico(oradorPrincipal, false);
     }
 
-    // Adicionar réplicas concluídas ao histórico (diretamente ao orador principal correto)
-    const entryPrincipal = historicoOradores.find(entry => typeof entry === 'object' && entry.nome === oradorPrincipal);
-    if(entryPrincipal){
-        replicasConcluidasAtual.forEach(replicaNome => {
-            if(!entryPrincipal.replicas.includes(replicaNome)){
-                entryPrincipal.replicas.push(replicaNome);
-            }
-        });
-    }
+    // Adicionar réplicas concluídas ao histórico
+    replicasConcluidasAtual.forEach(replicaNome => {
+        adicionarAoHistorico(replicaNome, true);
+    });
     replicasConcluidasAtual = [];
 
     // Limpar réplicas pendentes deste orador
