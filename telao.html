@@ -13,6 +13,11 @@ content="width=device-width, initial-scale=1.0">
 Cronômetro - Câmara Municipal de Ubá
 </title>
 
+<link
+rel="icon"
+type="image/png"
+href="Brasao_Uba.png">
+
 <style>
 
 *{
@@ -33,7 +38,7 @@ body{
 }
 
 body.tela-simples-mode::before{
-    opacity: 0.20;
+    opacity: 0.50;
 }
 body::before{
     content: '';
@@ -44,7 +49,7 @@ body::before{
     height: 100%;
     background: url('Brasao_Uba.png') center center no-repeat;
     background-size: contain;
-    opacity: 0.1;
+    opacity: 0.5;
     z-index: 0;
     pointer-events: none;
 }
@@ -56,43 +61,49 @@ body::before{
 }
 
 .container-telao{
-    text-align: center;
-    width: 100%;
-    padding: 10px 40px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 100vh;
+    text-align:center;
+    width:100%;
+    padding:10px 40px;
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
 }
-
+.espacador-telao{
+    flex:0.5;
+}
 .titulo-sessao-telao{
-    font-size: 48px;
+    font-size: 70px;
     font-weight: bold;
     color: #fff;
-    margin-bottom: 60px;
+    margin-bottom: -40px;
+	text-decoration: underline;
+text-decoration-thickness: 1px;
 }
 
 .status-telao{
-    font-size: 48px;
-    font-weight: bold;
-    color: #fff;
-    margin-bottom: 40px;
-}
-
-.orador-atual-telao{
-    font-size: 64px;
+    font-size: 50px;
     font-weight: bold;
     color: #fff;
     margin-bottom: 30px;
-    text-transform: uppercase;
+}
+
+.orador-atual-telao{
+    font-size:clamp(40px,3vw,60px);
+    font-weight:bold;
+    color:#fff;
+    text-transform:uppercase;
     line-height:1.2;
+    min-height:100px;
+    margin-bottom: 20px;
+    text-align:center;
+	  overflow:hidden;
 }
 
 .orador-atual-telao .replica-subtitle{
     display: block;
     font-size: 32px;
     font-weight: normal;
-    color: #aaa;
+    color: #fff;
     margin-top: 6px;
 }
 
@@ -100,26 +111,47 @@ body::before{
     font-size: 180px;
     font-weight: bold;
     color: #0787d9;
-    margin-bottom: 30px;
+    margin-bottom:50px;
     font-family: Arial, sans-serif;
+	text-shadow:
+    -1px -1px 0 #000,
+     3px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000;
 }
 
 .proximo-orador-telao{
     font-size: 36px;
-    color: #888;
+    color: #fff;
     margin-top: 20px;
 }
 
 .relogio-telao{
     position: fixed;
-    top: 10px;
+    bottom: 15px;
     right: 15px;
     font-size: 30px;
     color: #fff;
     text-align: right;
     line-height: 1.4;
+    z-index: 999;
 }
 
+@keyframes piscarFinal {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.2;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.cronometroPiscando{
+    animation: piscarFinal 1s infinite;
+}
 </style>
 
 
@@ -136,6 +168,7 @@ body::before{
     <div class="titulo-sessao-telao" id="tituloSessaoTelao">
         CONSIDERAÇÕES FINAIS
     </div>
+	<div class="espacador-telao"></div>
 
     <div id="conteudoNormalTelao">
 
@@ -148,7 +181,7 @@ body::before{
         </div>
 
         <div class="cronometro-telao" id="cronometroTelao">
-            05:00
+            
         </div>
 
         <div class="proximo-orador-telao" id="proximoOradorTelao">
@@ -160,8 +193,8 @@ body::before{
     <!-- Conteúdo da Tela Simples (inicialmente oculto) -->
     <div id="conteudoSimplesTelao" style="display:none;">
 
-        <div style="font-size:140px;font-weight:bold;color:#fff;margin-bottom:60px;">
-            Câmara Municipal de Ubá
+        <div style="font-size:120px;font-weight:bold;color:#fff;margin-bottom:60px;">
+            Câmara Municipal de Ubá/MG
         </div>
 
     </div>
@@ -206,10 +239,19 @@ setInterval(()=>{
         }
         const cronEl = document.getElementById('cronometroTelao');
         cronEl.textContent = dados.cronometro || '05:00';
-        cronEl.style.color = dados.cronometroCor || '#0787d9';
+		const partes = cronEl.textContent.split(':');
+const segundos = parseInt(partes[0]) * 60 + parseInt(partes[1]);
+
+if(segundos <= 10 && segundos > 0){
+    cronEl.classList.add('cronometroPiscando');
+}else{
+    cronEl.classList.remove('cronometroPiscando');
+}
+        cronEl.style.color = dados.cronometroCor || '#fff';
         const proximoEl = document.getElementById('proximoOradorTelao');
         if(dados.modoSessao === 'consideracoes'){
             proximoEl.style.display = '';
+            proximoEl.textContent = dados.proximoOrador || 'Próximo Orador: ---';
             proximoEl.textContent = dados.proximoOrador || 'Próximo Orador: ---';
         } else {
             proximoEl.style.display = 'none';
