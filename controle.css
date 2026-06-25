@@ -110,7 +110,7 @@ body{
 
     padding:15px;
 
-    height:100%;
+    min-height:100%;
 
 }
 
@@ -137,7 +137,7 @@ body{
    display:flex;
     flex-direction:column;
     align-items:center;
-    justify-content:center;
+    justify-content:flex-start;
   padding-top:20px;
 }
 
@@ -151,13 +151,13 @@ body{
 
     color:#666;
 
-    margin-top:20px;
+    margin-top:30px;
 
 }
 
 #oradorAtual{
 
-    font-size:30px;
+    font-size:25px;
 
     font-weight:bold;
 
@@ -167,25 +167,28 @@ body{
 
     margin-top:0px;
 
-    line-height:1.2;
+    line-height:1.1;
 
 }
 
 #oradorAtual small{
     display:block;
-    font-size:28px;
+    font-size:18px;
     font-weight:normal;
     color:#666;
-    margin-top:5px;
+    margin-top:8px;
 }
 
 .areaOrador{
 
-     height:120px;
+      width:100%;
+    min-height:150px;
+
     display:flex;
-    align-items:flex-end;
+    align-items:flex-start;
     justify-content:center;
-    width:100%;
+
+    text-align:center;
 
 }
 #cronometro{

@@ -66,25 +66,31 @@ body::before{
     padding:10px 40px;
     display:flex;
     flex-direction:column;
-    min-height:100vh;
+    height:100vh;
+    overflow:hidden;
 }
 .espacador-telao{
-    flex:0.5;
+    flex:0 0 auto;
+    height:40px;
 }
 .titulo-sessao-telao{
     font-size: 70px;
     font-weight: bold;
     color: #fff;
-    margin-bottom: -40px;
+    margin-top: 10px;
 	text-decoration: underline;
 text-decoration-thickness: 1px;
+    flex:0 0 auto;
+    height:90px;
 }
 
 .status-telao{
-    font-size: 50px;
+    font-size: 40px;
     font-weight: bold;
     color: #fff;
-    margin-bottom: 30px;
+    margin-bottom: 0;
+    flex:0 0 auto;
+    height:55px;
 }
 
 .orador-atual-telao{
@@ -93,37 +99,55 @@ text-decoration-thickness: 1px;
     color:#fff;
     text-transform:uppercase;
     line-height:1.2;
-    min-height:100px;
-    margin-bottom: 20px;
+    min-height:80px;
+    max-height:120px;
+    margin-bottom: 0;
     text-align:center;
-	  overflow:hidden;
+    overflow:hidden;
+    flex:0 0 auto;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    padding:0 20px;
 }
 
 .orador-atual-telao .replica-subtitle{
-    display: block;
-    font-size: 32px;
-    font-weight: normal;
-    color: #fff;
-    margin-top: 6px;
+    display:block;
+    font-weight:normal;
+    color:#fff;
+    margin-top:6px;
+    font-size:clamp(24px,2vw,40px);
+    line-height:1.1;
 }
 
 .cronometro-telao{
     font-size: 180px;
     font-weight: bold;
     color: #0787d9;
-    margin-bottom:50px;
+    margin-bottom:0;
     font-family: Arial, sans-serif;
-	text-shadow:
+    text-shadow:
     -1px -1px 0 #000,
      3px -1px 0 #000,
     -1px  1px 0 #000,
      1px  1px 0 #000;
+    flex:0 0 auto;
+    height:220px;
+    line-height:220px;
 }
 
 .proximo-orador-telao{
-    font-size: 36px;
-    color: #fff;
-    margin-top: 20px;
+    font-size:30px;
+    color:#fff;
+    margin-top:0;
+    max-width: calc(100% - 250px);
+    margin-left:auto;
+    margin-right:auto;
+    text-align:center;
+    flex:0 0 auto;
+    height:50px;
+    line-height:50px;
 }
 
 .relogio-telao{
