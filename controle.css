@@ -445,6 +445,7 @@ input{
     justify-content:space-between;
 
     align-items:center;
+    flex-wrap:wrap;
     gap:8px;
 
     background:#e9ecef;
@@ -504,6 +505,7 @@ input{
     display:flex;
     justify-content:space-between;
     align-items:center;
+    flex-wrap:wrap;
     gap:8px;
     background:#f3e8ff;
     border-radius:8px;
@@ -515,7 +517,7 @@ input{
 }
 
 .nomeOradorBtn{
-    flex:1 1 180px;
+    flex:1 1 220px;
     min-width:0;
     padding:7px 8px;
     background:transparent;
@@ -574,37 +576,28 @@ input{
     position:relative;
     display:inline-flex;
     align-items:center;
-    z-index:5;
 }
 
 .tempoExtraDropdown.desativado{
-    z-index:1;
+    opacity:0.8;
 }
 
-.tempoExtraOpcoes{
-    display:none;
-    position:absolute;
-    left:50%;
-    top:calc(100% + 4px);
-    transform:translateX(-50%);
-    min-width:170px;
-    max-width:min(220px, calc(100vw - 24px));
-    max-height:min(240px, 50vh);
+.tempoExtraMenuFlutuante{
+    position:fixed;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    width:190px;
+    max-width:calc(100vw - 16px);
+    max-height:min(220px, calc(100vh - 16px));
     padding:6px;
     overflow-y:auto;
     overflow-x:hidden;
     background:white;
     border:1px solid #ddd;
     border-radius:8px;
-    box-shadow:0 8px 20px rgba(0,0,0,.18);
-    z-index:1000;
-}
-
-.tempoExtraDropdown:not(.desativado):hover .tempoExtraOpcoes,
-.tempoExtraDropdown:not(.desativado):focus-within .tempoExtraOpcoes{
-    display:flex;
-    flex-direction:column;
-    gap:4px;
+    box-shadow:0 8px 22px rgba(0,0,0,.18);
+    z-index:3000;
 }
 
 .tempoExtraOpcao{

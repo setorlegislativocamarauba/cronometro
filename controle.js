@@ -1662,6 +1662,71 @@ function adicionarTempoExtraAlvo(tipo, nome, nomeOriginal, indexReplica, segundo
     salvarEstadoTelao();
 }
 
+let menuTempoExtraAberto = null;
+
+function fecharMenuTempoExtra(){
+    if(menuTempoExtraAberto){
+        menuTempoExtraAberto.remove();
+        menuTempoExtraAberto = null;
+    }
+}
+
+function abrirMenuTempoExtra(event, tipo, nome, nomeOriginal, indexReplica){
+    event.stopPropagation();
+
+    if(!speakerAtualEhAlvo(tipo, nome, nomeOriginal, indexReplica)){
+        return;
+    }
+
+    const botao = event.currentTarget;
+    const menuExistente = menuTempoExtraAberto;
+    fecharMenuTempoExtra();
+
+    if(menuExistente && menuExistente.dataset.alvo === botao.dataset.alvo){
+        return;
+    }
+
+    const menu = document.createElement("div");
+    menu.className = "tempoExtraMenuFlutuante";
+    menu.dataset.alvo = botao.dataset.alvo;
+
+    opcoesTempoExtraOrador.forEach(opcao => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "tempoExtraOpcao";
+        item.textContent = opcao.label;
+        item.onclick = function(e){
+            e.stopPropagation();
+            adicionarTempoExtraAlvo(tipo, nome, nomeOriginal, indexReplica, opcao.segundos);
+            fecharMenuTempoExtra();
+        };
+        menu.appendChild(item);
+    });
+
+    document.body.appendChild(menu);
+
+    const botaoRect = botao.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const margem = 8;
+    const larguraDisponivel = window.innerWidth - (margem * 2);
+
+    let left = botaoRect.right - menuRect.width;
+    left = Math.max(margem, Math.min(left, margem + larguraDisponivel - menuRect.width));
+
+    let top = botaoRect.bottom + 4;
+    if(top + menuRect.height > window.innerHeight - margem){
+        top = Math.max(margem, botaoRect.top - menuRect.height - 4);
+    }
+
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
+    menuTempoExtraAberto = menu;
+}
+
+document.addEventListener("click", fecharMenuTempoExtra);
+window.addEventListener("resize", fecharMenuTempoExtra);
+window.addEventListener("scroll", fecharMenuTempoExtra, true);
+
 function renderizarOpcoesTempoExtra(tipo, nome, nomeOriginal, indexReplica, desativado){
     return opcoesTempoExtraOrador.map(opcao => `
         <button
@@ -1680,6 +1745,7 @@ function renderizarControlesItemFila(tipo, nome, nomeOriginal, indexReplica, ite
     const tituloTempoExtra = itemAtivo ? "Acrescentar tempo ao orador atual" : "Inicie este orador para acrescentar tempo";
     const nomeOriginalArg = nomeOriginal ? "'" + nomeOriginal + "'" : "null";
     const indexReplicaArg = indexReplica === null ? "null" : indexReplica;
+    const alvoTempoExtra = tipo + "|" + nome + "|" + (nomeOriginal || "") + "|" + (indexReplica === null ? "" : indexReplica);
 
     return `
         <button
@@ -1699,13 +1765,11 @@ function renderizarControlesItemFila(tipo, nome, nomeOriginal, indexReplica, ite
             <button
             class="btnControleFila btnTempoExtraFila"
             ${disabledAttr}
-            title="${tituloTempoExtra}"
-            onclick="event.stopPropagation();">
+            aria-label="${tituloTempoExtra}"
+            data-alvo="${alvoTempoExtra}"
+            onclick="abrirMenuTempoExtra(event, '${tipo}', '${nome}', ${nomeOriginalArg}, ${indexReplicaArg})">
                 Tempo Extra
             </button>
-            <div class="tempoExtraOpcoes">
-                ${renderizarOpcoesTempoExtra(tipo, nome, nomeOriginal, indexReplica, !itemAtivo)}
-            </div>
         </div>
     `;
 }
