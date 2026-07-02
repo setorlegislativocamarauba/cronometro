@@ -98,6 +98,23 @@ function marcarReplicaConcluida(nomeOriginal, indexReplica){
     console.log("[replicasConcluidasAtual] adicionado:", { nomeOriginal, indexReplica });
 }
 
+function encontrarProximaReplicaSequencial(replicas, nomeOriginal, indexAtual = -1){
+    if(!replicas || replicas.length === 0){
+        return null;
+    }
+
+    for(let idx = indexAtual + 1; idx < replicas.length; idx++){
+        if(!replicaFoiConcluida(nomeOriginal, idx)){
+            return {
+                replica: replicas[idx],
+                index: idx
+            };
+        }
+    }
+
+    return null;
+}
+
 function buscarChaveReplicas(nome){
     const nomeUpper = nome.toUpperCase();
     for(const key of Object.keys(replicasPorOrador)){
@@ -134,11 +151,9 @@ function obterProximoOradorReal(){
         const replicas = chave ? replicasPorOrador[chave] : null;
         if(replicas && replicas.length > 0){
             // Procurar a primeira réplica NÃO concluída
-            const proximaReplica = replicas.find((r, idx) =>
-                !replicaFoiConcluida(nomeOrador, idx)
-            );
-            if(proximaReplica){
-                return { tipo: "replica", nome: proximaReplica.nome, nomeOriginal: nomeOrador };
+            const proximaReplicaInfo = encontrarProximaReplicaSequencial(replicas, nomeOrador);
+            if(proximaReplicaInfo){
+                return { tipo: "replica", nome: proximaReplicaInfo.replica.nome, nomeOriginal: nomeOrador };
             }
         }
         // Sem réplicas pendentes - próximo da fila
@@ -156,12 +171,14 @@ function obterProximoOradorReal(){
         const chave = buscarChaveReplicas(nomeOriginal);
         const replicas = chave ? replicasPorOrador[chave] : null;
         if(replicas && replicas.length > 0){
-            // Procurar a próxima réplica NÃO concluída (considerando a atual como concluída para este cálculo)
-            const proximaReplica = replicas.find((r, idx) =>
-                idx !== speakerAtual.indexReplica && !replicaFoiConcluida(nomeOriginal, idx)
+            // Procurar apenas réplicas posteriores à atual, respeitando a ordem da fila.
+            const proximaReplicaInfo = encontrarProximaReplicaSequencial(
+                replicas,
+                nomeOriginal,
+                speakerAtual.indexReplica
             );
-            if(proximaReplica){
-                return { tipo: "replica", nome: proximaReplica.nome, nomeOriginal: nomeOriginal };
+            if(proximaReplicaInfo){
+                return { tipo: "replica", nome: proximaReplicaInfo.replica.nome, nomeOriginal: nomeOriginal };
             }
         }
         // Sem mais réplicas - próximo orador principal da fila
@@ -228,6 +245,13 @@ let oradorTribunaLivre = null;
 let filaReplicas = [];
 let historicoTribuna = [];
 let selectedSpeaker = null;
+
+const opcoesTempoExtraOrador = [
+    { label: "+30 segundos", segundos: 30 },
+    { label: "+1 minuto", segundos: 60 },
+    { label: "+1 minuto e 30 segundos", segundos: 90 },
+    { label: "+2 minutos", segundos: 120 }
+];
 
 /* ==========================
 VEREADORES
@@ -569,6 +593,106 @@ function selecionarVereadorTribuna(nome){
 }
 
 /* ==========================
+CONDOLÊNCIAS
+========================== */
+
+function carregarCondolencias(){
+
+    painelEsquerdo.innerHTML = `
+        <h2 style="text-align:center;color:#555;">
+            Minuto de Silêncio
+        </h2>
+        <div style="text-align:center;padding:20px 10px;color:#888;font-size:14px;line-height:1.6;">
+            🕊️ Momento de luto<br>
+            Tempo fixo de 1 minuto<br>
+            <span style="display:block;margin-top:15px;font-size:12px;color:#aaa;">
+                Utilize os botões Iniciar e Pausar<br>
+                ao lado para controlar o tempo.
+            </span>
+        </div>
+    `;
+
+    painelCentro.innerHTML = ``;
+
+    // Pausar cronômetro e configurar para 1 minuto
+    pausarCronometro();
+    definirOradorAtual("none");
+    tempoInicial = 60;
+    tempoRestante = 60;
+    atualizarCronometro();
+    salvarEstadoTelao();
+
+}
+
+/* ==========================
+PAUSA
+========================== */
+
+function carregarPausa(){
+
+    painelEsquerdo.innerHTML = `
+        <h2 style="text-align:center;color:#555;">
+            Selecionar Duração
+        </h2>
+        <div id="listaTemposPausa" style="display:flex;flex-direction:column;gap:6px;padding:10px 0;"></div>
+    `;
+
+    painelCentro.innerHTML = ``;
+
+    // Gerar botões de 1 a 15 minutos
+    const lista = document.getElementById("listaTemposPausa");
+    for(let i = 1; i <= 15; i++){
+        const btn = document.createElement("button");
+        btn.className = "botaoVereador";
+        btn.textContent = i + " minuto" + (i > 1 ? "s" : "");
+        btn.onclick = function(){
+            selecionarTempoPausa(i);
+        };
+        lista.appendChild(btn);
+    }
+
+    // Pausar cronômetro e configurar estado inicial
+    pausarCronometro();
+    definirOradorAtual("none");
+    tempoInicial = 60; // 1 minuto padrão
+    tempoRestante = 60;
+    atualizarCronometro();
+    salvarEstadoTelao();
+
+}
+
+let tempoPausaSelecionado = 1; // em minutos
+
+function selecionarTempoPausa(minutos){
+    tempoPausaSelecionado = minutos;
+    pausarCronometro();
+    definirOradorAtual("none");
+    tempoInicial = minutos * 60;
+    tempoRestante = minutos * 60;
+    atualizarCronometro();
+    salvarEstadoTelao();
+
+    // Destacar o botão selecionado
+    document.querySelectorAll("#listaTemposPausa .botaoVereador").forEach(btn => {
+        btn.style.background = "#e9ecef";
+        btn.style.color = "#222";
+    });
+    // Encontrar e destacar o botão clicado
+    const botoes = document.querySelectorAll("#listaTemposPausa .botaoVereador");
+    const index = minutos - 1;
+    if(botoes[index]){
+        botoes[index].style.background = "#2b7cd3";
+        botoes[index].style.color = "white";
+    }
+
+    // Atualizar status
+    const statusEl = document.getElementById("statusPausa");
+    if(statusEl){
+        statusEl.innerHTML = "⏸ Pausa selecionada: <strong>" + minutos + " minuto" + (minutos > 1 ? "s" : "") + "</strong><br><br>Clique em <strong>Iniciar</strong> para começar a contagem regressiva";
+    }
+}
+
+/* ==========================
 MODOS
 ========================== */
 
@@ -598,6 +722,29 @@ function selecionarModo(
     document.getElementById(
         "btnProximo"
     );
+
+    atualizarControlesPrincipaisPorModo(modo);
+
+    // Restaurar visibilidade dos elementos que podem ter sido escondidos por modos simples
+    let tituloStatusEl = document.querySelector(".tituloStatus");
+    let oradorStatusEl = document.getElementById("oradorAtual");
+    if(tituloStatusEl) tituloStatusEl.style.display = "";
+    if(oradorStatusEl) oradorStatusEl.style.display = "";
+    // Restaurar coluna centro que pode ter sido escondida pelo modo Pausa ou Condolências
+    let colunaCentroEl = document.querySelector(".colunaCentro");
+    if(colunaCentroEl) colunaCentroEl.style.display = "";
+    // Restaurar flex da coluna esquerda e sua visibilidade
+    let colunaEsquerdaEl = document.querySelector(".coluna");
+    if(colunaEsquerdaEl) {
+        colunaEsquerdaEl.style.flex = "";
+        colunaEsquerdaEl.style.display = "";
+    }
+    // Restaurar coluna principal (cronômetro) ao layout original
+    let colunaPrincipalEl = document.querySelector(".colunaPrincipal");
+    if(colunaPrincipalEl) {
+        colunaPrincipalEl.style.flex = "";
+        colunaPrincipalEl.style.maxWidth = "";
+    }
 
     if(
         modo ===
@@ -679,6 +826,91 @@ function selecionarModo(
 
     if(
         modo ===
+        "condolencias"
+    ){
+
+        tituloSessao.textContent =
+        "CONDOLÊNCIAS";
+
+        modoCondolencias
+        .classList.add(
+            "modoAtivo"
+        );
+
+        proximoEl.style.display = "none";
+        btnProximoEl.style.display = "none";
+
+        // Mostrar container ao sair da tela simples
+        const container = document.querySelector(".container");
+        if(container){
+            container.style.display = "";
+        }
+
+        // Esconder "USANDO A PALAVRA" no operador
+        const tituloStatus = document.querySelector(".tituloStatus");
+        if(tituloStatus) tituloStatus.style.display = "none";
+        // Esconder "AGUARDANDO INÍCIO" 
+        const oradorEl = document.getElementById("oradorAtual");
+        if(oradorEl) oradorEl.style.display = "none";
+
+        // Esconder colunas 1 e 2 para Condolências - manter apenas coluna 3
+        const colunaEsquerdaCond = document.querySelector(".coluna");
+        if(colunaEsquerdaCond) colunaEsquerdaCond.style.display = "none";
+        const colunaCentroCond = document.querySelector(".colunaCentro");
+        if(colunaCentroCond) colunaCentroCond.style.display = "none";
+        // Ajustar coluna principal (painel do cronômetro) para ocupar a tela toda
+        const colunaPrincipalCond = document.querySelector(".colunaPrincipal");
+        if(colunaPrincipalCond){
+            colunaPrincipalCond.style.flex = "1 1 100%";
+            colunaPrincipalCond.style.maxWidth = "100%";
+        }
+
+        carregarCondolencias();
+
+    }
+
+    if(
+        modo ===
+        "pausa"
+    ){
+
+        tituloSessao.textContent =
+        "PAUSA";
+
+        modoPausa
+        .classList.add(
+            "modoAtivo"
+        );
+
+        proximoEl.style.display = "none";
+        btnProximoEl.style.display = "none";
+
+        // Mostrar container ao sair da tela simples
+        const container = document.querySelector(".container");
+        if(container){
+            container.style.display = "";
+        }
+
+        // Esconder "USANDO A PALAVRA" no operador
+        const tituloStatus = document.querySelector(".tituloStatus");
+        if(tituloStatus) tituloStatus.style.display = "none";
+        // Esconder "AGUARDANDO INÍCIO"
+        const oradorEl = document.getElementById("oradorAtual");
+        if(oradorEl) oradorEl.style.display = "none";
+
+        // Esconder a coluna do centro para Pausa
+        const colunaCentro = document.querySelector(".colunaCentro");
+        if(colunaCentro) colunaCentro.style.display = "none";
+        // Ajustar coluna esquerda para ocupar mais espaço
+        const colunaEsquerda = document.querySelector(".coluna");
+        if(colunaEsquerda) colunaEsquerda.style.flex = "0 0 360px";
+
+        carregarPausa();
+
+    }
+
+    if(
+        modo ===
         "tela_simples"
     ){
 
@@ -723,6 +955,55 @@ function selecionarModo(
 
     salvarEstadoTelao();
 
+}
+
+function atualizarControlesPrincipaisPorModo(modo){
+    const ocultarControlesIndividuais =
+    modo === "consideracoes";
+
+    const btnIniciarEl = document.getElementById("btnIniciar");
+    const btnPausarEl = document.getElementById("btnPausar");
+    const btnEncerrarEl = document.getElementById("btnEncerrar");
+    const btnRestaurarEl = document.getElementById("btnRestaurar");
+    const btnProximoEl = document.getElementById("btnProximo");
+    const btnRetornarEl = document.getElementById("btnRetornar");
+    const btnTempoExtraEl = document.getElementById("btnTempoExtra");
+    const btnAlarmeEl = document.getElementById("btnAlarme");
+
+    // Modos que só devem ter Iniciar e Pausar (sem alarme, tempo extra, encerrar, etc.)
+    const modoSimples = modo === "condolencias" || modo === "pausa";
+
+    if(btnIniciarEl){
+        btnIniciarEl.style.display = ocultarControlesIndividuais ? "none" : "";
+    }
+
+    if(btnPausarEl){
+        btnPausarEl.style.display = ocultarControlesIndividuais ? "none" : "";
+    }
+
+    if(btnEncerrarEl){
+        btnEncerrarEl.style.display = modoSimples ? "none" : "";
+    }
+
+    if(btnRestaurarEl){
+        btnRestaurarEl.style.display = modoSimples ? "none" : "";
+    }
+
+    if(btnProximoEl){
+        btnProximoEl.style.display = modoSimples ? "none" : "";
+    }
+
+    if(btnRetornarEl){
+        btnRetornarEl.style.display = modoSimples ? "none" : "";
+    }
+
+    if(btnTempoExtraEl){
+        btnTempoExtraEl.style.display = modoSimples ? "none" : "";
+    }
+
+    if(btnAlarmeEl){
+        btnAlarmeEl.style.display = modoSimples ? "none" : "";
+    }
 }
 
 /* ==========================
@@ -774,6 +1055,22 @@ modoTribuna
     "click",
     ()=>selecionarModo(
         "tribuna"
+    )
+);
+
+modoCondolencias
+.addEventListener(
+    "click",
+    ()=>selecionarModo(
+        "condolencias"
+    )
+);
+
+modoPausa
+.addEventListener(
+    "click",
+    ()=>selecionarModo(
+        "pausa"
     )
 );
 
@@ -919,7 +1216,7 @@ function iniciarCronometro(){
         atualizarCronometro();
         atualizarTextoProximoOrador();
         salvarEstadoTelao();
-    } else if(speakerAtual.tipo === "none") {
+    } else if(speakerAtual.tipo === "none" && modoSessao !== "condolencias" && modoSessao !== "pausa") {
         return;
     }
 
@@ -933,7 +1230,8 @@ function iniciarCronometro(){
     setInterval(()=>{
 
         // Se tempo extra estiver desligado e o tempo chegou a zero, parar o cronômetro
-        if(tempoRestante <= 0 && !tempoExtraAtivo){
+        // Para Condolências e Pausa, sempre parar ao chegar a zero (sem tempo extra)
+        if(tempoRestante <= 0 && (!tempoExtraAtivo || modoSessao === "condolencias" || modoSessao === "pausa")){
             pausarCronometro();
             atualizarCronometro();
             salvarEstadoTelao();
@@ -946,7 +1244,8 @@ function iniciarCronometro(){
 
         // Verificar se deve ativar alarme ao chegar em 00:00 (transição de 1 para 0)
         // alarmeAtivo nunca é alterado aqui - respeita o toggle do usuário
-        if(tempoRestante === 0 && alarmeAtivo){
+        // Condolências e Pausa não têm alarme
+        if(tempoRestante === 0 && alarmeAtivo && modoSessao !== "condolencias" && modoSessao !== "pausa"){
             tocarAlarme();
         }
 
@@ -997,12 +1296,15 @@ function encerrarCronometro(){
             const chaveReplicasEnc = buscarChaveReplicas(nomeOradorOriginal);
             const replicas = chaveReplicasEnc ? replicasPorOrador[chaveReplicasEnc] : null;
             if(replicas && replicas.length > 0){
-                // Encontrar a próxima réplica que ainda não foi concluída (por indexReplica)
-                const proximaReplica = replicas.find((r, idx) =>
-                    !replicaFoiConcluida(nomeOradorOriginal, idx)
+                // Encontrar a próxima réplica posterior à atual.
+                const proximaReplicaInfo = encontrarProximaReplicaSequencial(
+                    replicas,
+                    nomeOradorOriginal,
+                    indexReplicaAtual
                 );
-                if(proximaReplica){
-                    const idxProxima = replicas.indexOf(proximaReplica);
+                if(proximaReplicaInfo){
+                    const proximaReplica = proximaReplicaInfo.replica;
+                    const idxProxima = proximaReplicaInfo.index;
                     definirOradorAtual("replica", proximaReplica.nome, nomeOradorOriginal, idxProxima);
 
                     tempoInicial = proximaReplica.tempo;
@@ -1040,11 +1342,10 @@ function encerrarCronometro(){
             const replicas = replicasPorOrador[encontrado];
             if(replicas && replicas.length > 0){
                 // Encontrar a primeira réplica que ainda não foi concluída (por indexReplica)
-                const proximaReplica = replicas.find((r, idx) =>
-                    !replicaFoiConcluida(encontrado, idx)
-                );
-                if(proximaReplica){
-                    const idxProxima = replicas.indexOf(proximaReplica);
+                const proximaReplicaInfo = encontrarProximaReplicaSequencial(replicas, encontrado);
+                if(proximaReplicaInfo){
+                    const proximaReplica = proximaReplicaInfo.replica;
+                    const idxProxima = proximaReplicaInfo.index;
                     definirOradorAtual("replica", proximaReplica.nome, encontrado, idxProxima);
 
                     tempoInicial = proximaReplica.tempo;
@@ -1161,17 +1462,8 @@ btnIniciar.addEventListener(
         // Se há um orador selecionado manualmente, iniciar por ele
         if(selectedSpeaker && modoSessao === "consideracoes"){
             if(selectedSpeaker.tipo === "orador"){
-                // Iniciar o orador selecionado
-                pausarCronometro();
-                const nome = selectedSpeaker.nome;
-                oradorAtualConsideracoes = nome;
-                definirOradorAtual("orador", nome);
-                tempoInicial = 300;
-                tempoRestante = 300;
-                atualizarCronometro();
-                atualizarFilaConsideracoes();
-                salvarEstadoTelao();
-                clearSelectedSpeaker();
+                iniciarOradorConsideracoes(selectedSpeaker.nome);
+                return;
             } else if(selectedSpeaker.tipo === "replica"){
                 // Iniciar a réplica selecionada
                 iniciarReplica(selectedSpeaker.nomeOriginal, selectedSpeaker.indexReplica);
@@ -1284,6 +1576,140 @@ function selecionarItemFila(tipo, nome, nomeOriginal, indexReplica, element){
     }
 }
 
+function itemFilaEstaSelecionado(tipo, nome, nomeOriginal, indexReplica){
+    if(!selectedSpeaker || selectedSpeaker.tipo !== tipo){
+        return false;
+    }
+
+    if(tipo === "orador"){
+        return selectedSpeaker.nome === nome;
+    }
+
+    return selectedSpeaker.nome === nome &&
+    selectedSpeaker.nomeOriginal === nomeOriginal &&
+    selectedSpeaker.indexReplica === indexReplica;
+}
+
+function speakerAtualEhAlvo(tipo, nome, nomeOriginal, indexReplica){
+    if(speakerAtual.tipo !== tipo){
+        return false;
+    }
+
+    if(tipo === "orador"){
+        return speakerAtual.nome === nome;
+    }
+
+    return speakerAtual.nome === nome &&
+    speakerAtual.nomeOriginal === nomeOriginal &&
+    speakerAtual.indexReplica === indexReplica;
+}
+
+function iniciarOradorConsideracoes(nome){
+    pausarCronometro();
+
+    oradorAtualConsideracoes = nome;
+    definirOradorAtual("orador", nome);
+
+    tempoInicial = 300;
+    tempoRestante = 300;
+
+    atualizarCronometro();
+    atualizarFilaConsideracoes();
+    salvarEstadoTelao();
+    clearSelectedSpeaker();
+
+    ativarAudioContexto();
+    iniciarCronometro();
+}
+
+function iniciarItemFila(tipo, nome, nomeOriginal, indexReplica){
+    if(tipo === "replica"){
+        iniciarReplica(nomeOriginal, indexReplica);
+        clearSelectedSpeaker();
+        return;
+    }
+
+    iniciarOradorConsideracoes(nome);
+}
+
+function pausarItemFila(tipo, nome, nomeOriginal, indexReplica){
+    if(!speakerAtualEhAlvo(tipo, nome, nomeOriginal, indexReplica)){
+        return;
+    }
+
+    pausarCronometro();
+    atualizarFilaConsideracoes();
+    salvarEstadoTelao();
+}
+
+function adicionarTempoExtraAlvo(tipo, nome, nomeOriginal, indexReplica, segundos){
+    if(!speakerAtualEhAlvo(tipo, nome, nomeOriginal, indexReplica)){
+        return;
+    }
+
+    tempoInicial += segundos;
+    tempoRestante += segundos;
+
+    if(tipo === "replica"){
+        const replicas = replicasPorOrador[nomeOriginal];
+        if(replicas && replicas[indexReplica]){
+            replicas[indexReplica].tempo += segundos;
+        }
+    }
+
+    atualizarCronometro();
+    atualizarFilaConsideracoes();
+    salvarEstadoTelao();
+}
+
+function renderizarOpcoesTempoExtra(tipo, nome, nomeOriginal, indexReplica, desativado){
+    return opcoesTempoExtraOrador.map(opcao => `
+        <button
+        class="tempoExtraOpcao"
+        data-segundos="${opcao.segundos}"
+        ${desativado ? "disabled" : ""}
+        onclick="event.stopPropagation(); adicionarTempoExtraAlvo('${tipo}', '${nome}', ${nomeOriginal ? "'" + nomeOriginal + "'" : "null"}, ${indexReplica === null ? "null" : indexReplica}, ${opcao.segundos})">
+            ${opcao.label}
+        </button>
+    `).join("");
+}
+
+function renderizarControlesItemFila(tipo, nome, nomeOriginal, indexReplica, itemAtivo){
+    const classeTempoExtra = itemAtivo ? "tempoExtraDropdown" : "tempoExtraDropdown desativado";
+    const disabledAttr = itemAtivo ? "" : "disabled";
+    const tituloTempoExtra = itemAtivo ? "Acrescentar tempo ao orador atual" : "Inicie este orador para acrescentar tempo";
+    const nomeOriginalArg = nomeOriginal ? "'" + nomeOriginal + "'" : "null";
+    const indexReplicaArg = indexReplica === null ? "null" : indexReplica;
+
+    return `
+        <button
+        class="btnControleFila btnIniciarFila"
+        onclick="event.stopPropagation(); iniciarItemFila('${tipo}', '${nome}', ${nomeOriginalArg}, ${indexReplicaArg})">
+            Iniciar
+        </button>
+
+        <button
+        class="btnControleFila btnPausarFila"
+        ${disabledAttr}
+        onclick="event.stopPropagation(); pausarItemFila('${tipo}', '${nome}', ${nomeOriginalArg}, ${indexReplicaArg})">
+            Pausar
+        </button>
+
+        <div class="${classeTempoExtra}">
+            <button
+            class="btnControleFila btnTempoExtraFila"
+            ${disabledAttr}
+            title="${tituloTempoExtra}"
+            onclick="event.stopPropagation();">
+                Tempo Extra
+            </button>
+            <div class="tempoExtraOpcoes">
+                ${renderizarOpcoesTempoExtra(tipo, nome, nomeOriginal, indexReplica, !itemAtivo)}
+            </div>
+        </div>
+    `;
+}
+
 function atualizarFilaConsideracoes(){
 
     const div =
@@ -1311,25 +1737,36 @@ function atualizarFilaConsideracoes(){
             "div"
         );
 
+        const itemAtivo = speakerAtualEhAlvo("orador", nome, null, null);
+        const itemSelecionado = itemFilaEstaSelecionado("orador", nome, null, null);
+
         item.className =
-        "itemFila";
+        "itemFila" +
+        (itemAtivo ? " emUso" : "") +
+        (itemSelecionado ? " selected" : "");
 
         item.onclick = function(e){
-            // Ignore clicks on buttons inside the item
-            if(e.target.tagName === "BUTTON") return;
+            // Ignore clicks on controls inside the item
+            if(e.target.closest(".botoesDireita")) return;
             selecionarItemFila("orador", nome, null, null, item);
         };
 
         item.innerHTML = `
 
-            <span>
+            <button
+            class="nomeOradorBtn"
+            onclick="event.stopPropagation(); selecionarItemFila('orador', '${nome}', null, null, this.closest('.itemFila'))">
 
                 ${index+1}º
                 ${nome}
 
-            </span>
+            </button>
 
             <div class="botoesDireita">
+
+                <div class="controlesFala">
+                    ${renderizarControlesItemFila("orador", nome, null, null, itemAtivo)}
+                </div>
 
                 <div class="setasContainer">
 
@@ -1379,24 +1816,36 @@ function atualizarFilaConsideracoes(){
                 const repItem = document.createElement("div");
                 repItem.className = "itemReplicaNaFila";
 
+                const replicaAtiva = speakerAtualEhAlvo("replica", replica.nome, nome, repIndex);
+                const replicaSelecionada = itemFilaEstaSelecionado("replica", replica.nome, nome, repIndex);
+
+                repItem.className =
+                "itemReplicaNaFila" +
+                (replicaAtiva ? " emUso" : "") +
+                (replicaSelecionada ? " selected" : "");
+
                 repItem.onclick = function(e){
-                    // Ignore clicks on buttons inside the item
-                    if(e.target.tagName === "BUTTON") return;
+                    // Ignore clicks on controls inside the item
+                    if(e.target.closest(".botoesDireita")) return;
                     selecionarItemFila("replica", replica.nome, nome, repIndex, repItem);
                 };
 
                 repItem.innerHTML = `
-                    <span>
+                    <button
+                    class="nomeOradorBtn nomeReplicaBtn"
+                    onclick="event.stopPropagation(); selecionarItemFila('replica', '${replica.nome}', '${nome}', ${repIndex}, this.closest('.itemReplicaNaFila'))">
                         ${replica.nome}
                         <br>
                         <small>${formatarTempo(replica.tempo)}</small>
-                    </span>
+                    </button>
                     <div class="botoesDireita">
+                        <div class="controlesFala">
+                            ${renderizarControlesItemFila("replica", replica.nome, nome, repIndex, replicaAtiva)}
+                        </div>
                         <div class="setasContainer">
                             <button onclick="subirReplica('${nome}', ${repIndex})">▲</button>
                             <button onclick="descerReplica('${nome}', ${repIndex})">▼</button>
                         </div>
-                        <button onclick="iniciarReplica('${nome}', ${repIndex})" class="btnIniciarReplica">▶</button>
                     </div>
                 `;
 
@@ -1506,12 +1955,15 @@ function chamarProximoOrador(){
         const chaveReplicasEnc = buscarChaveReplicas(nomeOradorOriginal);
         const replicas = chaveReplicasEnc ? replicasPorOrador[chaveReplicasEnc] : null;
         if(replicas && replicas.length > 0){
-            // Encontrar a próxima réplica que ainda não foi concluída (por indexReplica)
-            const proximaReplica = replicas.find((r, idx) =>
-                !replicaFoiConcluida(nomeOradorOriginal, idx)
+            // Encontrar a próxima réplica posterior à atual.
+            const proximaReplicaInfo = encontrarProximaReplicaSequencial(
+                replicas,
+                nomeOradorOriginal,
+                indexReplicaAtual
             );
-            if(proximaReplica){
-                const idxProxima = replicas.indexOf(proximaReplica);
+            if(proximaReplicaInfo){
+                const proximaReplica = proximaReplicaInfo.replica;
+                const idxProxima = proximaReplicaInfo.index;
                 definirOradorAtual("replica", proximaReplica.nome, nomeOradorOriginal, idxProxima);
 
                 tempoInicial = proximaReplica.tempo;
@@ -1541,8 +1993,12 @@ function chamarProximoOrador(){
         
         if(replicasPendentes && replicasPendentes.length > 0){
             // Há réplicas pendentes - avançar para a primeira
-            const primeiraReplica = replicasPendentes[0];
-            const idxPrimeira = 0; // primeira da lista
+            const primeiraReplicaInfo = encontrarProximaReplicaSequencial(replicasPendentes, oradorPrincipalNome);
+            if(!primeiraReplicaInfo){
+                console.log("[chamarProximoOrador] orador sem réplicas pendentes não concluídas");
+            } else {
+            const primeiraReplica = primeiraReplicaInfo.replica;
+            const idxPrimeira = primeiraReplicaInfo.index;
             definirOradorAtual("replica", primeiraReplica.nome, oradorPrincipalNome, idxPrimeira);
 
             tempoInicial = primeiraReplica.tempo;
@@ -1559,6 +2015,7 @@ function chamarProximoOrador(){
 
             console.log("[chamarProximoOrador] FIM - avançou para primeira réplica:", primeiraReplica.nome, "index:", idxPrimeira);
             return;
+            }
         }
     }
 
@@ -1572,7 +2029,9 @@ function chamarProximoOrador(){
     // ==========================================
 
     // Identificar quem é o orador principal atual via speakerAtual (fonte única da verdade)
-    const oradorPrincipalAtual = speakerAtual.nome;
+    const oradorPrincipalAtual = speakerAtual.tipo === "replica" ?
+    speakerAtual.nomeOriginal :
+    speakerAtual.nome;
 
     // Encontrar o orador principal atual na fila
     const indexNaFila = encontrarOradorNaFila(oradorPrincipalAtual);
@@ -1639,8 +2098,13 @@ function chamarProximoOrador(){
         return;
     }
 
-    // Define o próximo da fila como orador (agora o [0] após a remoção correta)
-    const nome = filaConsideracoes[0];
+    // Define o próximo orador respeitando a posição de quem acabou de sair.
+    const proximoIndex =
+    indexNaFila !== -1 ?
+    Math.min(indexNaFila, filaConsideracoes.length - 1) :
+    0;
+
+    const nome = filaConsideracoes[proximoIndex];
 
     oradorAtualConsideracoes =
     nome;
@@ -1961,20 +2425,25 @@ function atualizarFilaReplicas(){
 
         replicas.forEach((replica, index) => {
             const item = document.createElement("div");
-            item.className = "itemReplica";
+            const replicaAtiva = speakerAtualEhAlvo("replica", replica.nome, nomeOriginal, index);
+            item.className = "itemReplica" + (replicaAtiva ? " emUso" : "");
 
             item.innerHTML = `
-                <span>
+                <button
+                class="nomeOradorBtn nomeReplicaBtn"
+                onclick="event.stopPropagation(); selecionarItemFila('replica', '${replica.nome}', '${nomeOriginal}', ${index}, this.closest('.itemReplica'))">
                     ${replica.nome}
                     <br>
                     <small>${formatarTempo(replica.tempo)}</small>
-                </span>
+                </button>
                 <div class="botoesDireita">
+                    <div class="controlesFala">
+                        ${renderizarControlesItemFila("replica", replica.nome, nomeOriginal, index, replicaAtiva)}
+                    </div>
                     <div class="setasContainer">
                         <button onclick="subirReplica('${nomeOriginal}', ${index})">▲</button>
                         <button onclick="descerReplica('${nomeOriginal}', ${index})">▼</button>
                     </div>
-                    <button onclick="iniciarReplica('${nomeOriginal}', ${index})" class="btnIniciarReplica">▶</button>
                 </div>
             `;
 

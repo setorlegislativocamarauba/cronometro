@@ -68,6 +68,7 @@ body::before{
     flex-direction:column;
     height:100vh;
     overflow:hidden;
+    position: relative;
 }
 .espacador-telao{
     flex:0 0 auto;
@@ -121,33 +122,40 @@ text-decoration-thickness: 1px;
     line-height:1.1;
 }
 
+/* Cronômetro fixo - sempre na mesma posição */
 .cronometro-telao{
     font-size: 180px;
     font-weight: bold;
-    color: #0787d9;
-    margin-bottom:0;
+    color: #fff;
     font-family: Arial, sans-serif;
     text-shadow:
     -1px -1px 0 #000,
      3px -1px 0 #000,
     -1px  1px 0 #000,
      1px  1px 0 #000;
-    flex:0 0 auto;
-    height:220px;
-    line-height:220px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    line-height: 1;
 }
 
 .proximo-orador-telao{
     font-size:30px;
     color:#fff;
-    margin-top:0;
+    margin-top:auto;
+    margin-bottom:20px;
     max-width: calc(100% - 250px);
     margin-left:auto;
     margin-right:auto;
     text-align:center;
     flex:0 0 auto;
-    height:50px;
-    line-height:50px;
+    min-height:50px;
+    line-height:1.3;
+    word-wrap:break-word;
+    overflow-wrap:break-word;
+    padding:5px 0;
 }
 
 .relogio-telao{
@@ -194,9 +202,9 @@ text-decoration-thickness: 1px;
     </div>
 	<div class="espacador-telao"></div>
 
-    <div id="conteudoNormalTelao">
+    <div id="conteudoNormalTelao" style="flex:1;display:flex;flex-direction:column;position:relative;">
 
-        <div class="status-telao">
+        <div class="status-telao" id="statusTelao">
             USANDO A PALAVRA:
         </div>
 
@@ -215,7 +223,7 @@ text-decoration-thickness: 1px;
     </div>
 
     <!-- Conteúdo da Tela Simples (inicialmente oculto) -->
-    <div id="conteudoSimplesTelao" style="display:none;">
+    <div id="conteudoSimplesTelao" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;">
 
         <div style="font-size:120px;font-weight:bold;color:#fff;margin-bottom:60px;">
             Câmara Municipal de Ubá/MG
@@ -243,39 +251,54 @@ setInterval(()=>{
         
         if(modo === 'tela_simples'){
             normalContent.style.display = 'none';
-            simpleContent.style.display = 'block';
+            simpleContent.style.display = 'flex';
             bodyEl.classList.add('tela-simples-mode');
             document.getElementById('tituloSessaoTelao').style.display = 'none';
         } else {
-            normalContent.style.display = 'block';
+            normalContent.style.display = 'flex';
             simpleContent.style.display = 'none';
             bodyEl.classList.remove('tela-simples-mode');
             document.getElementById('tituloSessaoTelao').style.display = '';
         }
         
+        const isModoSimples = dados.modoSessao === 'condolencias' || dados.modoSessao === 'pausa';
+        
+        // Para Condolências e Pausa, esconder "USANDO A PALAVRA" e "AGUARDANDO INÍCIO"
+        const statusEl = document.getElementById('statusTelao');
         const oradorAtualEl = document.getElementById('oradorAtualTelao');
-        const oradorTexto = dados.oradorAtual || 'AGUARDANDO INÍCIO';
-        const replicaMatch = oradorTexto.match(/^(.+)\s*\(RÉPLICA DE\s*(.+)\)$/i);
-        if(replicaMatch){
-            oradorAtualEl.innerHTML = replicaMatch[1] + '<span class="replica-subtitle">RÉPLICA DE ' + replicaMatch[2] + '</span>';
+        
+        if(isModoSimples){
+            statusEl.style.display = 'none';
+            oradorAtualEl.style.display = 'none';
         } else {
-            oradorAtualEl.textContent = oradorTexto;
+            statusEl.style.display = '';
+            oradorAtualEl.style.display = '';
+            const oradorTexto = dados.oradorAtual || 'AGUARDANDO INÍCIO';
+            const replicaMatch = oradorTexto.match(/^(.+)\s*\(RÉPLICA DE\s*(.+)\)$/i);
+            if(replicaMatch){
+                oradorAtualEl.innerHTML = replicaMatch[1] + '<span class="replica-subtitle">RÉPLICA DE ' + replicaMatch[2] + '</span>';
+            } else {
+                oradorAtualEl.textContent = oradorTexto;
+            }
         }
+        
         const cronEl = document.getElementById('cronometroTelao');
         cronEl.textContent = dados.cronometro || '05:00';
 		const partes = cronEl.textContent.split(':');
-const segundos = parseInt(partes[0]) * 60 + parseInt(partes[1]);
+        const segundos = parseInt(partes[0]) * 60 + parseInt(partes[1]);
 
-if(segundos <= 10 && segundos > 0){
-    cronEl.classList.add('cronometroPiscando');
-}else{
-    cronEl.classList.remove('cronometroPiscando');
-}
+        if(segundos <= 10 && segundos > 0){
+            cronEl.classList.add('cronometroPiscando');
+        }else{
+            cronEl.classList.remove('cronometroPiscando');
+        }
+        // Cor do cronômetro branca por padrão, muda conforme o tempo
+        // O controle.js já envia a cor correta via dados.cronometroCor
         cronEl.style.color = dados.cronometroCor || '#fff';
+        
         const proximoEl = document.getElementById('proximoOradorTelao');
         if(dados.modoSessao === 'consideracoes'){
             proximoEl.style.display = '';
-            proximoEl.textContent = dados.proximoOrador || 'Próximo Orador: ---';
             proximoEl.textContent = dados.proximoOrador || 'Próximo Orador: ---';
         } else {
             proximoEl.style.display = 'none';

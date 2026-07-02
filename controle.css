@@ -86,13 +86,21 @@ body{
 
 .coluna{
 
-    width:400px;
+    width:360px;
+    flex:0 0 360px;
 
+}
+
+.colunaCentro{
+    width:auto;
+    flex:1.45 1 500px;
+    min-width:430px;
 }
 
 .colunaPrincipal{
 
-    flex:1.8;
+    flex:0.95 1 310px;
+    min-width:300px;
 
 }
 
@@ -193,7 +201,7 @@ body{
 }
 #cronometro{
 
-    font-size:80px;
+    font-size:clamp(54px, 5vw, 80px);
 
     font-weight:bold;
 
@@ -437,6 +445,7 @@ input{
     justify-content:space-between;
 
     align-items:center;
+    gap:8px;
 
     background:#e9ecef;
 
@@ -448,19 +457,28 @@ input{
 
 }
 
-.itemFila .botoesDireita{
+.itemFila .botoesDireita,
+.itemReplicaNaFila .botoesDireita,
+.itemReplica .botoesDireita{
     display:flex;
     align-items:center;
     gap:4px;
+    justify-content:flex-end;
+    flex:0 0 auto;
+    flex-wrap:wrap;
 }
 
-.itemFila .setasContainer{
+.itemFila .setasContainer,
+.itemReplicaNaFila .setasContainer,
+.itemReplica .setasContainer{
     display:flex;
     flex-direction:column;
     gap:2px;
 }
 
-.itemFila .setasContainer button{
+.itemFila .setasContainer button,
+.itemReplicaNaFila .setasContainer button,
+.itemReplica .setasContainer button{
     width:30px;
     height:22px;
     margin-left:0;
@@ -469,7 +487,8 @@ input{
     line-height:1;
 }
 
-.itemFila .btnMais{
+.itemFila .btnMais,
+.itemReplicaNaFila .btnMais{
     width:30px;
     height:30px;
     background:#6a1b9a;
@@ -485,6 +504,7 @@ input{
     display:flex;
     justify-content:space-between;
     align-items:center;
+    gap:8px;
     background:#f3e8ff;
     border-radius:8px;
     padding:6px 8px;
@@ -494,12 +514,126 @@ input{
     border-left:3px solid #6a1b9a;
 }
 
+.nomeOradorBtn{
+    flex:1 1 180px;
+    min-width:0;
+    padding:7px 8px;
+    background:transparent;
+    color:#222;
+    text-align:left;
+    font-size:13px;
+    line-height:1.25;
+    border-radius:6px;
+    word-break:break-word;
+}
+
+.nomeOradorBtn:hover{
+    background:rgba(43,124,211,0.08);
+    filter:none;
+}
+
+.nomeReplicaBtn{
+    font-size:12px;
+}
+
+.controlesFala{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+}
+
+.btnControleFila{
+    min-height:30px;
+    padding:6px 8px;
+    color:white;
+    font-size:11px;
+    font-weight:bold;
+    white-space:nowrap;
+}
+
+.btnIniciarFila{
+    background:#2e7d32;
+}
+
+.btnPausarFila{
+    background:#f57c00;
+}
+
+.btnTempoExtraFila{
+    background:#2b7cd3;
+}
+
+.btnControleFila:disabled{
+    opacity:0.45;
+    cursor:not-allowed;
+}
+
+.tempoExtraDropdown{
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+    z-index:5;
+}
+
+.tempoExtraDropdown.desativado{
+    z-index:1;
+}
+
+.tempoExtraOpcoes{
+    display:none;
+    position:absolute;
+    left:50%;
+    top:calc(100% + 4px);
+    transform:translateX(-50%);
+    min-width:170px;
+    max-width:min(220px, calc(100vw - 24px));
+    max-height:min(240px, 50vh);
+    padding:6px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    background:white;
+    border:1px solid #ddd;
+    border-radius:8px;
+    box-shadow:0 8px 20px rgba(0,0,0,.18);
+    z-index:1000;
+}
+
+.tempoExtraDropdown:not(.desativado):hover .tempoExtraOpcoes,
+.tempoExtraDropdown:not(.desativado):focus-within .tempoExtraOpcoes{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+}
+
+.tempoExtraOpcao{
+    width:100%;
+    padding:7px 8px;
+    background:#eef4fb;
+    color:#1f4f82;
+    text-align:left;
+    font-size:12px;
+}
+
+.tempoExtraOpcao:hover{
+    background:#d9e9f8;
+    filter:none;
+}
+
+.itemFila.emUso,
+.itemReplicaNaFila.emUso,
+.itemReplica.emUso{
+    outline:2px solid #2e7d32;
+    background:#e8f5e9;
+}
+
 .itemReplicaNaFila small{
     color:#888;
     font-size:10px;
 }
 
-.itemReplicaNaFila button{
+.itemReplicaNaFila .setasContainer button{
     width:24px;
     height:24px;
     margin-left:3px;
@@ -630,7 +764,7 @@ input{
     font-size:11px;
 }
 
-.itemReplica button{
+.itemReplica .setasContainer button{
     width:28px;
     height:28px;
     margin-left:3px;
