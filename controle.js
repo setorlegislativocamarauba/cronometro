@@ -246,12 +246,30 @@ let filaReplicas = [];
 let historicoTribuna = [];
 let selectedSpeaker = null;
 
+/* ==========================
+CONVIDADOS - ESTADO
+========================== */
+
+let filaConvidadosOradores = []; // Array de { tipo: "vereador" | "convidado", nome: string }
+let historicoConvidados = []; // Array de nomes dos que já falaram
+let convidadosAdicionados = []; // Array de nomes dos convidados já adicionados à fila
+let tempoInicialConvidado = 120; // Tempo padrão em segundos para convidados
+
 const opcoesTempoExtraOrador = [
     { label: "+30 segundos", segundos: 30 },
     { label: "+1 minuto", segundos: 60 },
     { label: "+1 minuto e 30 segundos", segundos: 90 },
     { label: "+2 minutos", segundos: 120 }
 ];
+
+// Opções de tempo para o modo Convidados - de 30s até 15min
+const opcoesTempoConvidado = [];
+for(let i = 30; i <= 60; i += 30){
+    opcoesTempoConvidado.push({ label: (i === 30 ? "30 segundos" : "1 minuto"), segundos: i });
+}
+for(let i = 2; i <= 15; i++){
+    opcoesTempoConvidado.push({ label: i + " minutos", segundos: i * 60 });
+}
 
 /* ==========================
 VEREADORES
@@ -300,6 +318,7 @@ function salvarEstadoTelao(){
         oradorAtual: oradorExibir,
         cronometro: cronEl.textContent,
         cronometroCor: cronEl.style.color || "",
+        cronometroOculto: cronEl.style.display === "none",
         proximoOrador: document.getElementById("proximoOrador").textContent,
         modoSessao: modoSessao
     };
@@ -730,6 +749,9 @@ function selecionarModo(
     let oradorStatusEl = document.getElementById("oradorAtual");
     if(tituloStatusEl) tituloStatusEl.style.display = "";
     if(oradorStatusEl) oradorStatusEl.style.display = "";
+    // Restaurar cronômetro (pode ter sido ocultado pelo modo Convidados)
+    let cronometroEl = document.getElementById("cronometro");
+    if(cronometroEl) cronometroEl.style.display = "";
     // Restaurar coluna centro que pode ter sido escondida pelo modo Pausa ou Condolências
     let colunaCentroEl = document.querySelector(".colunaCentro");
     if(colunaCentroEl) colunaCentroEl.style.display = "";
@@ -866,6 +888,32 @@ function selecionarModo(
         }
 
         carregarCondolencias();
+
+    }
+
+    if(
+        modo ===
+        "convidados"
+    ){
+
+        tituloSessao.textContent =
+        "CONVIDADOS";
+
+        modoConvidados
+        .classList.add(
+            "modoAtivo"
+        );
+
+        proximoEl.style.display = "none";
+        btnProximoEl.style.display = "none";
+
+        // Mostrar container ao sair da tela simples
+        const container = document.querySelector(".container");
+        if(container){
+            container.style.display = "";
+        }
+
+        carregarConvidados();
 
     }
 
@@ -1063,6 +1111,19 @@ modoCondolencias
     "click",
     ()=>selecionarModo(
         "condolencias"
+    )
+);
+
+const modoConvidados =
+document.getElementById(
+    "modoConvidados"
+);
+
+modoConvidados
+.addEventListener(
+    "click",
+    ()=>selecionarModo(
+        "convidados"
     )
 );
 
@@ -2515,5 +2576,396 @@ function atualizarFilaReplicas(){
         });
 
         div.appendChild(oradorDiv);
+    });
+}
+
+/* ==========================
+CONVIDADOS - FUNÇÕES
+========================== */
+
+function carregarConvidados(){
+
+    // Limpar estado ao carregar
+    filaConvidadosOradores = [];
+    historicoConvidados = [];
+    convidadosAdicionados = [];
+    tempoInicialConvidado = 120;
+
+    painelEsquerdo.innerHTML = `
+
+        <h2 style="text-align:center;">
+            Inserir Convidado/Convocado
+        </h2>
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0;">
+            <input
+            id="nomeConvidadoExterno"
+            placeholder="Nome do(a) Convidado(a)"
+            style="width:100%;max-width:300px;">
+
+            <button
+            id="btnAdicionarConvidado"
+            class="botaoVereador"
+            style="width:100%;max-width:300px;background:#2b7cd3;color:white;font-size:14px;">
+
+                Adicionar Convidado/Convocado
+
+            </button>
+        </div>
+
+        <hr style="margin:15px 0;">
+
+        <h2 style="text-align:center;">
+            Vereadores
+        </h2>
+
+        <div id="listaVereadoresConvidados"></div>
+
+        <hr style="margin:15px 0;">
+
+        <h2 style="text-align:center;">
+            Histórico
+        </h2>
+
+        <div id="historicoConvidados"></div>
+
+    `;
+
+    painelCentro.innerHTML = `
+
+        <h2>
+            Fila de Oradores
+        </h2>
+
+        <div id="filaConvidadosOradores"></div>
+
+    `;
+
+    // Renderizar lista de vereadores
+    const listaVereadores = document.getElementById("listaVereadoresConvidados");
+    vereadores.forEach(nome => {
+        const btn = document.createElement("button");
+        btn.className = "botaoVereador";
+        btn.textContent = nome;
+        btn.onclick = function(){
+            adicionarOradorConvidados("vereador", nome);
+        };
+        listaVereadores.appendChild(btn);
+    });
+
+    // Adicionar listener para o botão de convidado externo
+    document.getElementById("btnAdicionarConvidado").addEventListener("click", function(){
+        const input = document.getElementById("nomeConvidadoExterno");
+        const nome = input.value.trim();
+        if(nome === ""){
+            alert("Por favor, insira o nome do convidado");
+            return;
+        }
+        adicionarOradorConvidados("convidado", nome);
+        input.value = "";
+    });
+
+    // Pausar cronômetro e limpar orador atual
+    pausarCronometro();
+    definirOradorAtual("none");
+    tempoInicial = 300;
+    tempoRestante = 300;
+    // Ocultar cronômetro no modo convidados (tempo é facultativo)
+    document.getElementById("cronometro").style.display = "none";
+    salvarEstadoTelao();
+
+    atualizarFilaConvidados();
+    atualizarHistoricoConvidados();
+}
+
+function adicionarOradorConvidados(tipo, nome){
+    // Verificar se já está na fila
+    const jaNaFila = filaConvidadosOradores.some(o => o.nome.toUpperCase() === nome.toUpperCase());
+    if(jaNaFila){
+        return;
+    }
+
+    // Verificar se já está falando
+    if(speakerAtual.tipo !== "none" && speakerAtual.nome.toUpperCase() === nome.toUpperCase()){
+        return;
+    }
+
+    // Tempo inicial é 0 - o operador define o tempo antes de iniciar
+    filaConvidadosOradores.push({
+        tipo: tipo,
+        nome: nome,
+        tempo: 0
+    });
+
+    // Se for convidado, adicionar à lista de convidados adicionados
+    if(tipo === "convidado" && !convidadosAdicionados.includes(nome)){
+        convidadosAdicionados.push(nome);
+    }
+
+    atualizarFilaConvidados();
+    salvarEstadoTelao();
+}
+
+function removerOradorConvidados(index){
+    filaConvidadosOradores.splice(index, 1);
+    atualizarFilaConvidados();
+    salvarEstadoTelao();
+}
+
+function subirOradorConvidados(index){
+    if(index === 0) return;
+    [filaConvidadosOradores[index - 1], filaConvidadosOradores[index]] = [filaConvidadosOradores[index], filaConvidadosOradores[index - 1]];
+    atualizarFilaConvidados();
+}
+
+function descerOradorConvidados(index){
+    if(index >= filaConvidadosOradores.length - 1) return;
+    [filaConvidadosOradores[index + 1], filaConvidadosOradores[index]] = [filaConvidadosOradores[index], filaConvidadosOradores[index + 1]];
+    atualizarFilaConvidados();
+}
+
+function iniciarOradorConvidados(index){
+    const orador = filaConvidadosOradores[index];
+    if(!orador) return;
+
+    pausarCronometro();
+
+    definirOradorAtual("orador", orador.nome);
+
+    tempoInicial = orador.tempo;
+    tempoRestante = orador.tempo;
+
+    // Se não há tempo definido, ocultar o cronômetro
+    const cronEl = document.getElementById("cronometro");
+    if(orador.tempo <= 0){
+        cronEl.style.display = "none";
+    } else {
+        cronEl.style.display = "";
+        atualizarCronometro();
+        ativarAudioContexto();
+        iniciarCronometro();
+    }
+
+    atualizarFilaConvidados();
+    salvarEstadoTelao();
+}
+
+function pausarOradorConvidados(index){
+    const orador = filaConvidadosOradores[index];
+    if(!orador) return;
+
+    if(!speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        return;
+    }
+
+    pausarCronometro();
+    atualizarFilaConvidados();
+    salvarEstadoTelao();
+}
+
+function adicionarTempoOradorConvidados(index, segundos){
+    const orador = filaConvidadosOradores[index];
+    if(!orador) return;
+
+    // Define o tempo (não é extra - é o tempo total ofertado)
+    orador.tempo = segundos;
+
+    // Se o orador estiver falando, mostrar o cronômetro e atualizar
+    const cronEl = document.getElementById("cronometro");
+    if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        cronEl.style.display = "";
+        tempoInicial = segundos;
+        tempoRestante = segundos;
+        atualizarCronometro();
+        // Se estava pausado e não rodando, não inicia automático
+        // Se estava rodando, mantém rodando
+        // Se não estava rodando, apenas mostra o tempo parado
+    }
+
+    atualizarFilaConvidados();
+    salvarEstadoTelao();
+}
+
+function encerrarOradorConvidados(index){
+    const orador = filaConvidadosOradores[index];
+    if(!orador) return;
+
+    if(!speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        return;
+    }
+
+    pausarCronometro();
+
+    // Adicionar ao histórico
+    if(!historicoConvidados.includes(orador.nome)){
+        historicoConvidados.push(orador.nome);
+    }
+    atualizarHistoricoConvidados();
+
+    // Remover da fila
+    filaConvidadosOradores.splice(index, 1);
+
+    definirOradorAtual("none");
+    tempoInicial = 300;
+    tempoRestante = 300;
+    atualizarCronometro();
+    atualizarFilaConvidados();
+    salvarEstadoTelao();
+}
+
+function abrirMenuTempoConvidado(event, index){
+    event.stopPropagation();
+
+    const orador = filaConvidadosOradores[index];
+    if(!orador) return;
+
+    // Não precisa verificar se está falando - o tempo pode ser definido antes de iniciar
+    const botao = event.currentTarget;
+    const menuExistente = menuTempoExtraAberto;
+    fecharMenuTempoExtra();
+
+    if(menuExistente && menuExistente.dataset.alvo === "conv_" + index){
+        return;
+    }
+
+    const menu = document.createElement("div");
+    menu.className = "tempoExtraMenuFlutuante";
+    menu.dataset.alvo = "conv_" + index;
+
+    opcoesTempoConvidado.forEach(opcao => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "tempoExtraOpcao";
+        item.textContent = opcao.label;
+        item.onclick = function(e){
+            e.stopPropagation();
+            adicionarTempoOradorConvidados(index, opcao.segundos);
+            fecharMenuTempoExtra();
+        };
+        menu.appendChild(item);
+    });
+
+    document.body.appendChild(menu);
+
+    // Força o layout para obter altura real já limitada pelo max-height do CSS
+    void menu.offsetHeight;
+    const menuRect = menu.getBoundingClientRect();
+    const botaoRect = botao.getBoundingClientRect();
+    const menuHeight = menuRect.height;
+    const menuWidth = 190;
+    const margem = 8;
+    const larguraDisponivel = window.innerWidth - (margem * 2);
+
+    let left = botaoRect.right - menuWidth;
+    left = Math.max(margem, Math.min(left, margem + larguraDisponivel - menuWidth));
+
+    let top = botaoRect.bottom + 4;
+    if(top + menuHeight > window.innerHeight - margem){
+        top = Math.max(margem, botaoRect.top - menuHeight - 4);
+    }
+
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
+    menuTempoExtraAberto = menu;
+}
+
+function atualizarFilaConvidados(){
+    const div = document.getElementById("filaConvidadosOradores");
+    if(!div) return;
+
+    div.innerHTML = "";
+
+    if(filaConvidadosOradores.length === 0){
+        div.innerHTML = "<div style='color:#888;padding:8px;text-align:center;font-size:13px;'>Nenhum orador na fila</div>";
+        return;
+    }
+
+    filaConvidadosOradores.forEach((orador, index) => {
+        const container = document.createElement("div");
+        container.className = "itemFilaContainer";
+
+        const item = document.createElement("div");
+        const itemAtivo = speakerAtualEhAlvo("orador", orador.nome, null, null);
+
+        item.className = "itemFila" + (itemAtivo ? " emUso" : "");
+
+        const tipoLabel = orador.tipo === "convidado" ? "🎤 Convidado" : "🏛 Vereador";
+
+        item.innerHTML = `
+
+            <button
+            class="nomeOradorBtn"
+            onclick="event.stopPropagation();">
+
+                ${index + 1}º
+                ${orador.nome}
+                <br>
+                <small style="color:#888;font-size:10px;">${tipoLabel} · ${formatarTempo(orador.tempo)}</small>
+
+            </button>
+
+            <div class="botoesDireita">
+
+                <div class="controlesFala">
+                    <button
+                    class="btnControleFila btnIniciarFila"
+                    onclick="event.stopPropagation(); iniciarOradorConvidados(${index})">
+                        Iniciar
+                    </button>
+
+                    <button
+                    class="btnControleFila btnPausarFila"
+                    ${itemAtivo ? "" : "disabled"}
+                    onclick="event.stopPropagation(); pausarOradorConvidados(${index})">
+                        Pausar
+                    </button>
+
+                    <div class="tempoExtraDropdown">
+                        <button
+                        class="btnControleFila btnTempoExtraFila"
+                        data-alvo="conv_${index}"
+                        onclick="abrirMenuTempoConvidado(event, ${index})">
+                            Tempo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="setasContainer">
+                    <button onclick="subirOradorConvidados(${index})">▲</button>
+                    <button onclick="descerOradorConvidados(${index})">▼</button>
+                </div>
+
+                <button class="btnMais"
+                style="background:#d32f2f;"
+                onclick="removerOradorConvidados(${index})"
+                title="Remover da fila">
+                    ✕
+                </button>
+
+            </div>
+
+        `;
+
+        container.appendChild(item);
+        div.appendChild(container);
+    });
+}
+
+function atualizarHistoricoConvidados(){
+    const div = document.getElementById("historicoConvidados");
+    if(!div) return;
+
+    div.innerHTML = "";
+
+    if(historicoConvidados.length === 0){
+        div.innerHTML = "<div style='color:#888;padding:8px;text-align:center;font-size:13px;'>Nenhum orador registrado</div>";
+        return;
+    }
+
+    historicoConvidados.slice().reverse().forEach(nome => {
+        const item = document.createElement("div");
+        item.className = "botaoVereador";
+        item.textContent = nome;
+        div.appendChild(item);
     });
 }

@@ -283,18 +283,24 @@ setInterval(()=>{
         }
         
         const cronEl = document.getElementById('cronometroTelao');
-        cronEl.textContent = dados.cronometro || '05:00';
-		const partes = cronEl.textContent.split(':');
-        const segundos = parseInt(partes[0]) * 60 + parseInt(partes[1]);
+        // Se o cronômetro estiver oculto no operador, ocultar também no telão
+        if(dados.cronometroOculto){
+            cronEl.style.display = 'none';
+        } else {
+            cronEl.style.display = '';
+            cronEl.textContent = dados.cronometro || '05:00';
+            const partes = cronEl.textContent.split(':');
+            const segundos = parseInt(partes[0]) * 60 + parseInt(partes[1]);
 
-        if(segundos <= 10 && segundos > 0){
-            cronEl.classList.add('cronometroPiscando');
-        }else{
-            cronEl.classList.remove('cronometroPiscando');
+            if(segundos <= 10 && segundos > 0){
+                cronEl.classList.add('cronometroPiscando');
+            }else{
+                cronEl.classList.remove('cronometroPiscando');
+            }
+            // Cor do cronômetro branca por padrão, muda conforme o tempo
+            // O controle.js já envia a cor correta via dados.cronometroCor
+            cronEl.style.color = dados.cronometroCor || '#fff';
         }
-        // Cor do cronômetro branca por padrão, muda conforme o tempo
-        // O controle.js já envia a cor correta via dados.cronometroCor
-        cronEl.style.color = dados.cronometroCor || '#fff';
         
         const proximoEl = document.getElementById('proximoOradorTelao');
         if(dados.modoSessao === 'consideracoes'){
@@ -303,6 +309,8 @@ setInterval(()=>{
         } else {
             proximoEl.style.display = 'none';
         }
+        
+        // O modo convidados mostra o botão "Iniciar" e "Pausar" normalmente sem "Próximo Orador"
         
     } catch(e){
         console.log('Erro ao sincronizar:', e);
