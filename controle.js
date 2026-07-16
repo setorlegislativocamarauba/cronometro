@@ -7,6 +7,7 @@ ESTADO GLOBAL
 let modoSessao =
 "tela_simples";
 let historicoDiscussao = [];
+let filaDiscussaoOradores = [];
 
 let historicoOradores = [];
 
@@ -242,8 +243,8 @@ let oradorAtualConsideracoes = null;
 let tempoExtraAtivo = true;
 let alarmeAtivo = true;
 let oradorTribunaLivre = null;
+let filaTribunaOradores = [];
 let filaReplicas = [];
-let historicoTribuna = [];
 let selectedSpeaker = null;
 
 /* ==========================
@@ -275,7 +276,7 @@ for(let i = 2; i <= 15; i++){
 VEREADORES
 ========================== */
 
-const vereadores = [
+const vereadoresPadraoNomes = [
 
 "Vereador Alexandre de Barros Mendes",
 "Vereadora Aline Moreira Silva Melo",
@@ -294,6 +295,80 @@ const vereadores = [
 "Vereador Samuel Soares da Silva"
 
 ];
+
+const CHAVE_VEREADORES = "vereadoresCadastro";
+let vereadoresCadastro = [];
+let vereadores = [];
+
+function gerarIdVereador(){
+    return "ver_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+}
+
+function criarVereador(nome, ativo = true, id = null){
+    return {
+        id: id || gerarIdVereador(),
+        nome: nome || "",
+        ativo: ativo !== false
+    };
+}
+
+function obterListaPadraoVereadores(){
+    return vereadoresPadraoNomes.map(nome => criarVereador(nome, true));
+}
+
+function atualizarListaAtivaVereadores(){
+    vereadores = vereadoresCadastro
+        .filter(v => v && v.ativo !== false && String(v.nome || "").trim() !== "")
+        .map(v => String(v.nome).trim());
+}
+
+function carregarVereadores(){
+    const salvo = localStorage.getItem(CHAVE_VEREADORES);
+
+    if(!salvo){
+        vereadoresCadastro = obterListaPadraoVereadores();
+        atualizarListaAtivaVereadores();
+        return vereadoresCadastro;
+    }
+
+    try{
+        const dados = JSON.parse(salvo);
+        if(Array.isArray(dados)){
+            vereadoresCadastro = dados
+                .map(item => {
+                    if(typeof item === "string"){
+                        return criarVereador(item, true);
+                    }
+
+                    return criarVereador(item.nome, item.ativo, item.id);
+                })
+                .filter(v => String(v.nome || "").trim() !== "");
+        } else {
+            vereadoresCadastro = obterListaPadraoVereadores();
+        }
+    } catch(e){
+        vereadoresCadastro = obterListaPadraoVereadores();
+    }
+
+    atualizarListaAtivaVereadores();
+    return vereadoresCadastro;
+}
+
+function salvarVereadores(lista){
+    vereadoresCadastro = lista
+        .map(item => criarVereador(String(item.nome || "").trim(), item.ativo, item.id))
+        .filter(v => v.nome !== "");
+
+    localStorage.setItem(CHAVE_VEREADORES, JSON.stringify(vereadoresCadastro));
+    atualizarListaAtivaVereadores();
+    salvarEstadoTelao();
+}
+
+function restaurarListaPadrao(){
+    vereadoresCadastro = obterListaPadraoVereadores();
+    localStorage.setItem(CHAVE_VEREADORES, JSON.stringify(vereadoresCadastro));
+    atualizarListaAtivaVereadores();
+}
 
 /* ==========================
 FUNÇÕES DE SINCRONIZAÇÃO
@@ -333,6 +408,8 @@ TELAS
 
 function carregarDiscussao(){
 
+    filaDiscussaoOradores = [];
+
     painelEsquerdo.innerHTML = `
 
         <h2>Vereadores</h2>
@@ -343,9 +420,9 @@ function carregarDiscussao(){
 
     painelCentro.innerHTML = `
 
-        <h2>Histórico</h2>
+        <h2>Fila de Oradores</h2>
 
-        <div id="historicoDiscussao"></div>
+        <div id="filaDiscussaoOradores"></div>
 
     `;
 
@@ -369,7 +446,7 @@ function carregarDiscussao(){
 
         btn.onclick = ()=>{
 
-            selecionarOradorDiscussao(
+            adicionarOradorDiscussao(
                 nome
             );
 
@@ -381,7 +458,7 @@ function carregarDiscussao(){
 
     });
 
-    atualizarHistoricoDiscussao();
+    atualizarFilaDiscussao();
 
 }
 
@@ -412,6 +489,16 @@ function carregarConsideracoes(){
         </h2>
 
         <div id="filaOradores"></div>
+
+    `;
+
+    painelEsquerdo.innerHTML = `
+
+        <h2>
+            Inscri\u00e7\u00e3o dos Vereadores
+        </h2>
+
+        <div id="listaConsideracoes"></div>
 
     `;
 
@@ -448,12 +535,12 @@ function carregarConsideracoes(){
     });
 
     atualizarFilaConsideracoes();
-    atualizarHistoricoOradores();
 
 }
 
 function carregarTribuna(){
 
+    filaTribunaOradores = [];
     painelEsquerdo.innerHTML = `
 
         <h2 style="text-align:center;">
@@ -482,11 +569,19 @@ function carregarTribuna(){
             Histórico de Oradores
         </h2>
 
-        <div id="historicoTribuna"></div>
+        <div id="listaComentarios"></div>
 
     `;
 
     painelCentro.innerHTML = `
+
+        <h2>
+            Fila de Oradores
+        </h2>
+
+        <div id="filaTribunaOradores"></div>
+
+        <hr style="margin:15px 0;">
 
         <h2>
             Comentários dos Vereadores
@@ -495,6 +590,21 @@ function carregarTribuna(){
         <div id="listaComentarios"></div>
 
     `;
+
+    painelCentro.innerHTML = `
+
+        <h2>
+            Fila de Oradores
+        </h2>
+
+        <div id="filaTribunaOradores"></div>
+
+    `;
+
+    const titulosTribuna = painelEsquerdo.querySelectorAll("h2");
+    if(titulosTribuna[1]){
+        titulosTribuna[1].textContent = "Coment\u00e1rios dos Vereadores";
+    }
 
     const lista =
     document.getElementById(
@@ -516,7 +626,8 @@ function carregarTribuna(){
 
         btn.onclick = ()=>{
 
-            selecionarVereadorTribuna(
+            adicionarOradorTribuna(
+                "vereador",
                 nome
             );
 
@@ -531,6 +642,15 @@ function carregarTribuna(){
     // Adicionar listener para registrar convidado
     document.getElementById("btnRegistrarConvidado").addEventListener("click", registrarConvidado);
 
+    pausarCronometro();
+    definirOradorAtual("none");
+    tempoInicial = 300;
+    tempoRestante = 300;
+    document.getElementById("cronometro").style.display = "none";
+    salvarEstadoTelao();
+
+    atualizarFilaTribuna();
+
 }
 
 function registrarConvidado(){
@@ -543,29 +663,314 @@ function registrarConvidado(){
         return;
     }
 
-    pausarCronometro();
-
-    oradorTribunaLivre = nome;
-
-    definirOradorAtual("orador", nome);
-
-    tempoInicial = 600;
-    tempoRestante = 600;
-
-    atualizarCronometro();
-    salvarEstadoTelao();
+    adicionarOradorTribuna("orador", nome);
 
     nomeInput.value = "";
 
     // Adicionar ao histórico da tribuna
-    if(!historicoTribuna.includes(nome)){
-        historicoTribuna.push(nome);
-    }
-    atualizarHistoricoTribuna();
-
 }
 
-function atualizarHistoricoTribuna(){
+function adicionarOradorTribuna(tipo, nome){
+    const jaNaFila = filaTribunaOradores.some(o => o.nome.toUpperCase() === nome.toUpperCase());
+    if(jaNaFila){
+        return;
+    }
+
+    if(speakerAtual.tipo !== "none" && speakerAtual.nome.toUpperCase() === nome.toUpperCase()){
+        return;
+    }
+
+    filaTribunaOradores.push({
+        tipo: tipo,
+        nome: nome,
+        tempo: tipo === "vereador" ? 120 : 600
+    });
+
+    atualizarFilaTribuna();
+    salvarEstadoTelao();
+}
+
+function removerOradorTribuna(index){
+    filaTribunaOradores.splice(index, 1);
+    atualizarFilaTribuna();
+    salvarEstadoTelao();
+}
+
+function subirOradorTribuna(index){
+    if(index === 0) return;
+    [filaTribunaOradores[index - 1], filaTribunaOradores[index]] = [filaTribunaOradores[index], filaTribunaOradores[index - 1]];
+    atualizarFilaTribuna();
+    salvarEstadoTelao();
+}
+
+function descerOradorTribuna(index){
+    if(index >= filaTribunaOradores.length - 1) return;
+    [filaTribunaOradores[index + 1], filaTribunaOradores[index]] = [filaTribunaOradores[index], filaTribunaOradores[index + 1]];
+    atualizarFilaTribuna();
+    salvarEstadoTelao();
+}
+
+function consumirTempoTribunaAtual(nomeMantido = null){
+    if(modoSessao !== "tribuna" || speakerAtual.tipo !== "orador" || !speakerAtual.nome){
+        return;
+    }
+
+    if(nomeMantido && speakerAtual.nome.toUpperCase() === nomeMantido.toUpperCase()){
+        return;
+    }
+
+    const oradorAtual = filaTribunaOradores.find(o => o.nome.toUpperCase() === speakerAtual.nome.toUpperCase());
+    if(oradorAtual){
+        oradorAtual.tempo = 0;
+    }
+}
+
+function iniciarOradorTribuna(index){
+    const orador = filaTribunaOradores[index];
+    if(!orador) return;
+
+    if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        const cronEl = document.getElementById("cronometro");
+        if(tempoRestante > 0){
+            cronEl.style.display = "";
+            ativarAudioContexto();
+            iniciarCronometro();
+        } else {
+            cronEl.style.display = "none";
+        }
+
+        atualizarFilaTribuna();
+        salvarEstadoTelao();
+        return;
+    }
+
+    consumirTempoTribunaAtual(orador.nome);
+    pausarCronometro();
+
+    oradorTribunaLivre = orador.nome;
+    definirOradorAtual("orador", orador.nome);
+
+    tempoInicial = orador.tempo;
+    tempoRestante = orador.tempo;
+
+    const cronEl = document.getElementById("cronometro");
+    if(orador.tempo <= 0){
+        cronEl.style.display = "none";
+    } else {
+        cronEl.style.display = "";
+        atualizarCronometro();
+        ativarAudioContexto();
+        iniciarCronometro();
+    }
+
+    atualizarFilaTribuna();
+    salvarEstadoTelao();
+}
+
+function pausarOradorTribuna(index){
+    const orador = filaTribunaOradores[index];
+    if(!orador) return;
+
+    if(!speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        return;
+    }
+
+    pausarCronometro();
+    orador.tempo = tempoRestante;
+    atualizarFilaTribuna();
+    salvarEstadoTelao();
+}
+
+function adicionarTempoOradorTribuna(index, segundos){
+    const orador = filaTribunaOradores[index];
+    if(!orador) return;
+
+    orador.tempo = segundos;
+
+    const cronEl = document.getElementById("cronometro");
+    if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        cronEl.style.display = "";
+        tempoInicial = segundos;
+        tempoRestante = segundos;
+        atualizarCronometro();
+    }
+
+    atualizarFilaTribuna();
+    salvarEstadoTelao();
+}
+
+function encerrarOradorTribuna(index){
+    const orador = filaTribunaOradores[index];
+    if(!orador) return;
+
+    if(!speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        return;
+    }
+
+    pausarCronometro();
+    orador.tempo = 0;
+
+    definirOradorAtual("none");
+    oradorTribunaLivre = null;
+    tempoInicial = 300;
+    tempoRestante = 300;
+    document.getElementById("cronometro").style.display = "none";
+    atualizarCronometro();
+    atualizarFilaTribuna();
+    salvarEstadoTelao();
+}
+
+function abrirMenuTempoTribuna(event, index){
+    event.stopPropagation();
+
+    const orador = filaTribunaOradores[index];
+    if(!orador) return;
+
+    const botao = event.currentTarget;
+    const menuExistente = menuTempoExtraAberto;
+    fecharMenuTempoExtra();
+
+    if(menuExistente && menuExistente.dataset.alvo === "trib_" + index){
+        return;
+    }
+
+    const menu = document.createElement("div");
+    menu.className = "tempoExtraMenuFlutuante";
+    menu.dataset.alvo = "trib_" + index;
+
+    opcoesTempoConvidado.forEach(opcao => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "tempoExtraOpcao";
+        item.textContent = opcao.label;
+        item.onclick = function(e){
+            e.stopPropagation();
+            adicionarTempoOradorTribuna(index, opcao.segundos);
+            fecharMenuTempoExtra();
+        };
+        menu.appendChild(item);
+    });
+
+    document.body.appendChild(menu);
+
+    void menu.offsetHeight;
+    const menuRect = menu.getBoundingClientRect();
+    const botaoRect = botao.getBoundingClientRect();
+    const menuHeight = menuRect.height;
+    const menuWidth = 190;
+    const margem = 8;
+    const larguraDisponivel = window.innerWidth - (margem * 2);
+
+    let left = botaoRect.right - menuWidth;
+    left = Math.max(margem, Math.min(left, margem + larguraDisponivel - menuWidth));
+
+    let top = botaoRect.bottom + 4;
+    if(top + menuHeight > window.innerHeight - margem){
+        top = Math.max(margem, botaoRect.top - menuHeight - 4);
+    }
+
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
+    menuTempoExtraAberto = menu;
+}
+
+function atualizarFilaTribuna(){
+    const div = document.getElementById("filaTribunaOradores");
+    if(!div) return;
+
+    div.innerHTML = "";
+
+    if(filaTribunaOradores.length === 0){
+        div.innerHTML = "<div style='color:#888;padding:8px;text-align:center;font-size:13px;'>Nenhum orador na fila</div>";
+        return;
+    }
+
+    filaTribunaOradores.forEach((orador, index) => {
+        const container = document.createElement("div");
+        container.className = "itemFilaContainer";
+
+        const item = document.createElement("div");
+        const itemAtivo = speakerAtualEhAlvo("orador", orador.nome, null, null);
+
+        item.className = "itemFila" + (itemAtivo ? " emUso" : "");
+
+        const tipoLabel = orador.tipo === "vereador" ? "Vereador" : "Orador";
+        const nomeSeguro = String(orador.nome)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+        item.innerHTML = `
+
+            <button
+            class="nomeOradorBtn"
+            onclick="event.stopPropagation(); iniciarOradorTribuna(${index})">
+
+                ${index + 1}.
+                ${nomeSeguro}
+                <br>
+                <small style="color:#888;font-size:10px;">${tipoLabel} - ${formatarTempo(orador.tempo)}</small>
+
+            </button>
+
+            <div class="botoesDireita">
+
+                <div class="controlesFala">
+                    <button
+                    class="btnControleFila btnIniciarFila"
+                    onclick="event.stopPropagation(); iniciarOradorTribuna(${index})">
+                        Iniciar
+                    </button>
+
+                    <button
+                    class="btnControleFila btnPausarFila"
+                    ${itemAtivo ? "" : "disabled"}
+                    onclick="event.stopPropagation(); pausarOradorTribuna(${index})">
+                        Pausar
+                    </button>
+
+                    <div class="tempoExtraDropdown">
+                        <button
+                        class="btnControleFila btnTempoExtraFila"
+                        data-alvo="trib_${index}"
+                        onclick="abrirMenuTempoTribuna(event, ${index})">
+                            Tempo
+                        </button>
+                    </div>
+
+                    <button
+                    class="btnControleFila"
+                    style="background:#607d8b;"
+                    ${itemAtivo ? "" : "disabled"}
+                    onclick="event.stopPropagation(); encerrarOradorTribuna(${index})">
+                        Encerrar
+                    </button>
+                </div>
+
+                <div class="setasContainer">
+                    <button onclick="subirOradorTribuna(${index})">^</button>
+                    <button onclick="descerOradorTribuna(${index})">v</button>
+                </div>
+
+                <button class="btnMais"
+                style="background:#d32f2f;"
+                onclick="removerOradorTribuna(${index})"
+                title="Remover da fila">
+                    x
+                </button>
+
+            </div>
+
+        `;
+
+        container.appendChild(item);
+        div.appendChild(container);
+    });
+}
+
+function atualizarHistoricoTribunaRemovido(){
     const div = document.getElementById("historicoTribuna");
     if(!div){
         return;
@@ -589,7 +994,7 @@ function atualizarHistoricoTribuna(){
     });
 }
 
-function selecionarVereadorTribuna(nome){
+function selecionarVereadorTribunaRemovido(nome){
 
     pausarCronometro();
 
@@ -707,7 +1112,7 @@ function selecionarTempoPausa(minutos){
     // Atualizar status
     const statusEl = document.getElementById("statusPausa");
     if(statusEl){
-        statusEl.innerHTML = "⏸ Pausa selecionada: <strong>" + minutos + " minuto" + (minutos > 1 ? "s" : "") + "</strong><br><br>Clique em <strong>Iniciar</strong> para começar a contagem regressiva";
+        statusEl.innerHTML = "Pausa selecionada: <strong>" + minutos + " minuto" + (minutos > 1 ? "s" : "") + "</strong><br><br>Clique em <strong>Iniciar</strong> para começar a contagem regressiva";
     }
 }
 
@@ -754,7 +1159,11 @@ function selecionarModo(
     if(cronometroEl) cronometroEl.style.display = "";
     // Restaurar coluna centro que pode ter sido escondida pelo modo Pausa ou Condolências
     let colunaCentroEl = document.querySelector(".colunaCentro");
-    if(colunaCentroEl) colunaCentroEl.style.display = "";
+    if(colunaCentroEl) {
+        colunaCentroEl.style.display = "";
+        colunaCentroEl.style.flex = "";
+        colunaCentroEl.style.minWidth = "";
+    }
     // Restaurar flex da coluna esquerda e sua visibilidade
     let colunaEsquerdaEl = document.querySelector(".coluna");
     if(colunaEsquerdaEl) {
@@ -764,8 +1173,45 @@ function selecionarModo(
     // Restaurar coluna principal (cronômetro) ao layout original
     let colunaPrincipalEl = document.querySelector(".colunaPrincipal");
     if(colunaPrincipalEl) {
+        colunaPrincipalEl.style.display = "";
         colunaPrincipalEl.style.flex = "";
         colunaPrincipalEl.style.maxWidth = "";
+    }
+
+    if(
+        modo ===
+        "administrador"
+    ){
+
+        modoAdministrador
+        .classList.add(
+            "modoAtivo"
+        );
+
+        proximoEl.style.display = "none";
+        btnProximoEl.style.display = "none";
+
+        const container = document.querySelector(".container");
+        if(container){
+            container.style.display = "";
+        }
+
+        pausarCronometro();
+        definirOradorAtual("none");
+        tempoInicial = 300;
+        tempoRestante = 300;
+        atualizarCronometro();
+        if(tituloStatusEl) tituloStatusEl.style.display = "none";
+        if(oradorStatusEl) oradorStatusEl.style.display = "none";
+        if(cronometroEl) cronometroEl.style.display = "none";
+        if(colunaEsquerdaEl) colunaEsquerdaEl.style.display = "none";
+        if(colunaPrincipalEl) colunaPrincipalEl.style.display = "none";
+        if(colunaCentroEl){
+            colunaCentroEl.style.flex = "1 1 100%";
+            colunaCentroEl.style.minWidth = "0";
+        }
+        renderizarAdministrador();
+
     }
 
     if(
@@ -807,8 +1253,8 @@ function selecionarModo(
             "modoAtivo"
         );
 
-        proximoEl.style.display = "";
-        btnProximoEl.style.display = "";
+        proximoEl.style.display = "none";
+        btnProximoEl.style.display = "none";
 
         // Mostrar container ao sair da tela simples
         const container = document.querySelector(".container");
@@ -986,7 +1432,7 @@ function selecionarModo(
         if(!btnTelaoSimples){
             btnTelaoSimples = document.createElement("button");
             btnTelaoSimples.id = "btnTelaoSimples";
-            btnTelaoSimples.textContent = "🖥 Telão";
+            btnTelaoSimples.innerHTML = '<img class="iconeBotao" src="icons/tela-simples.svg" alt=""> Tel\u00e3o';
             btnTelaoSimples.style.cssText = "display:block;margin:15px auto 0;padding:10px 24px;background:#2b7cd3;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;font-weight:bold;";
             btnTelaoSimples.addEventListener("click", abrirTelao);
             tituloSessao.parentNode.insertBefore(btnTelaoSimples, tituloSessao.nextSibling);
@@ -997,7 +1443,7 @@ function selecionarModo(
         // Remover botão Telão da tela simples ao sair do modo
         const btnTelaoSimples = document.getElementById("btnTelaoSimples");
         if(btnTelaoSimples){
-            btnTelaoSimples.style.display = "none";
+            btnTelaoSimples.remove();
         }
     }
 
@@ -1007,7 +1453,7 @@ function selecionarModo(
 
 function atualizarControlesPrincipaisPorModo(modo){
     const ocultarControlesIndividuais =
-    modo === "consideracoes";
+    modo === "consideracoes" || modo === "discussao" || modo === "tribuna" || modo === "convidados" || modo === "administrador";
 
     const btnIniciarEl = document.getElementById("btnIniciar");
     const btnPausarEl = document.getElementById("btnPausar");
@@ -1017,9 +1463,11 @@ function atualizarControlesPrincipaisPorModo(modo){
     const btnRetornarEl = document.getElementById("btnRetornar");
     const btnTempoExtraEl = document.getElementById("btnTempoExtra");
     const btnAlarmeEl = document.getElementById("btnAlarme");
+    const btnTelaoEl = document.getElementById("btnTelao");
 
     // Modos que só devem ter Iniciar e Pausar (sem alarme, tempo extra, encerrar, etc.)
-    const modoSimples = modo === "condolencias" || modo === "pausa";
+    const ocultarControlesAvancados = modo === "condolencias" || modo === "pausa" || modo === "administrador";
+    const ocultarBotoesAlarmeTempo = modo === "condolencias" || modo === "administrador";
 
     if(btnIniciarEl){
         btnIniciarEl.style.display = ocultarControlesIndividuais ? "none" : "";
@@ -1030,28 +1478,117 @@ function atualizarControlesPrincipaisPorModo(modo){
     }
 
     if(btnEncerrarEl){
-        btnEncerrarEl.style.display = modoSimples ? "none" : "";
+        btnEncerrarEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
     }
 
     if(btnRestaurarEl){
-        btnRestaurarEl.style.display = modoSimples ? "none" : "";
+        btnRestaurarEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
     }
 
     if(btnProximoEl){
-        btnProximoEl.style.display = modoSimples ? "none" : "";
+        btnProximoEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
     }
 
     if(btnRetornarEl){
-        btnRetornarEl.style.display = modoSimples ? "none" : "";
+        btnRetornarEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
     }
 
     if(btnTempoExtraEl){
-        btnTempoExtraEl.style.display = modoSimples ? "none" : "";
+        btnTempoExtraEl.style.display = ocultarBotoesAlarmeTempo ? "none" : "";
     }
 
     if(btnAlarmeEl){
-        btnAlarmeEl.style.display = modoSimples ? "none" : "";
+        btnAlarmeEl.style.display = ocultarBotoesAlarmeTempo ? "none" : "";
     }
+
+    if(btnTelaoEl){
+        btnTelaoEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
+    }
+}
+
+function obterDadosFormularioAdministrador(){
+    const linhas = document.querySelectorAll(".adminVereadorLinha");
+    return Array.from(linhas).map(linha => {
+        const input = linha.querySelector("input");
+        return criarVereador(input ? input.value : "", true, linha.dataset.id);
+    });
+}
+
+function renderizarAdministrador(lista = vereadoresCadastro){
+    tituloSessao.textContent = "ADMINISTRADOR";
+    painelEsquerdo.innerHTML = "";
+
+    painelCentro.innerHTML = `
+        <h2>Cadastro de Vereadores</h2>
+        <div id="listaAdministradorVereadores" class="adminListaVereadores"></div>
+        <button id="btnAdicionarAdminVereador" class="botaoVereador adminAdicionar">+ Adicionar Vereador</button>
+        <div class="adminAcoes">
+            <button id="btnSalvarAdmin" class="botaoAdmin botaoAdminSalvar">Salvar Altera\u00e7\u00f5es</button>
+            <button id="btnCancelarAdmin" class="botaoAdmin botaoAdminCancelar">Cancelar</button>
+            <button id="btnRestaurarAdmin" class="botaoAdmin botaoAdminRestaurar">Restaurar Lista Padr\u00e3o</button>
+        </div>
+    `;
+
+    const listaEl = document.getElementById("listaAdministradorVereadores");
+
+    function renderLinhas(dados){
+        listaEl.innerHTML = "";
+        dados.forEach((vereador, index) => {
+            const linha = document.createElement("div");
+            linha.className = "adminVereadorLinha";
+            linha.dataset.id = vereador.id || gerarIdVereador();
+            linha.innerHTML = `
+                <input type="text" value="${String(vereador.nome || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}">
+                <button type="button" data-acao="subir">^</button>
+                <button type="button" data-acao="descer">v</button>
+                <button type="button" data-acao="excluir">Excluir</button>
+            `;
+
+            linha.querySelector('[data-acao="subir"]').onclick = function(){
+                const atual = obterDadosFormularioAdministrador();
+                if(index === 0) return;
+                [atual[index - 1], atual[index]] = [atual[index], atual[index - 1]];
+                renderLinhas(atual);
+            };
+
+            linha.querySelector('[data-acao="descer"]').onclick = function(){
+                const atual = obterDadosFormularioAdministrador();
+                if(index >= atual.length - 1) return;
+                [atual[index + 1], atual[index]] = [atual[index], atual[index + 1]];
+                renderLinhas(atual);
+            };
+
+            linha.querySelector('[data-acao="excluir"]').onclick = function(){
+                const atual = obterDadosFormularioAdministrador();
+                atual.splice(index, 1);
+                renderLinhas(atual);
+            };
+
+            listaEl.appendChild(linha);
+        });
+    }
+
+    renderLinhas(lista.map(v => criarVereador(v.nome, v.ativo, v.id)));
+
+    document.getElementById("btnAdicionarAdminVereador").onclick = function(){
+        const atual = obterDadosFormularioAdministrador();
+        atual.push(criarVereador(""));
+        renderLinhas(atual);
+    };
+
+    document.getElementById("btnSalvarAdmin").onclick = function(){
+        salvarVereadores(obterDadosFormularioAdministrador());
+        renderizarAdministrador(vereadoresCadastro);
+    };
+
+    document.getElementById("btnCancelarAdmin").onclick = function(){
+        renderizarAdministrador(vereadoresCadastro);
+    };
+
+    document.getElementById("btnRestaurarAdmin").onclick = function(){
+        restaurarListaPadrao();
+        renderizarAdministrador(vereadoresCadastro);
+    };
 }
 
 /* ==========================
@@ -1080,6 +1617,19 @@ document.getElementById(
 const tituloSessao =
 document.getElementById(
     "tituloSessao"
+);
+
+const modoAdministrador =
+document.getElementById(
+    "modoAdministrador"
+);
+
+modoAdministrador
+.addEventListener(
+    "click",
+    ()=>selecionarModo(
+        "administrador"
+    )
 );
 
 modoDiscussao
@@ -1143,31 +1693,259 @@ modoTelaSimples
     )
 );
 
+carregarVereadores();
+
 selecionarModo(
     "tela_simples"
 );
 
-function selecionarOradorDiscussao(
-    nome
-){
+function adicionarOradorDiscussao(nome){
+    const jaNaFila = filaDiscussaoOradores.some(o => o.nome.toUpperCase() === nome.toUpperCase());
+    if(jaNaFila){
+        return;
+    }
 
-    pausarCronometro();
+    if(speakerAtual.tipo !== "none" && speakerAtual.nome.toUpperCase() === nome.toUpperCase()){
+        return;
+    }
 
-    definirOradorAtual("orador", nome);
+    filaDiscussaoOradores.push({
+        nome: nome,
+        tempo: 300
+    });
 
-    historicoDiscussao.push(
-        nome
-    );
-
-    atualizarHistoricoDiscussao();
-    
-    tempoInicial = 300;
-    tempoRestante = 300;
-
-    atualizarCronometro();
+    atualizarFilaDiscussao();
     salvarEstadoTelao();
 }
 
+function removerOradorDiscussao(index){
+    filaDiscussaoOradores.splice(index, 1);
+    atualizarFilaDiscussao();
+    salvarEstadoTelao();
+}
+
+function subirOradorDiscussao(index){
+    if(index === 0) return;
+    [filaDiscussaoOradores[index - 1], filaDiscussaoOradores[index]] = [filaDiscussaoOradores[index], filaDiscussaoOradores[index - 1]];
+    atualizarFilaDiscussao();
+    salvarEstadoTelao();
+}
+
+function descerOradorDiscussao(index){
+    if(index >= filaDiscussaoOradores.length - 1) return;
+    [filaDiscussaoOradores[index + 1], filaDiscussaoOradores[index]] = [filaDiscussaoOradores[index], filaDiscussaoOradores[index + 1]];
+    atualizarFilaDiscussao();
+    salvarEstadoTelao();
+}
+
+function iniciarOradorDiscussao(index){
+    const orador = filaDiscussaoOradores[index];
+    if(!orador) return;
+
+    pausarCronometro();
+
+    definirOradorAtual("orador", orador.nome);
+
+    if(!historicoDiscussao.includes(orador.nome)){
+        historicoDiscussao.push(orador.nome);
+    }
+
+    atualizarHistoricoDiscussao();
+
+    tempoInicial = orador.tempo;
+    tempoRestante = orador.tempo;
+
+    atualizarCronometro();
+    ativarAudioContexto();
+    iniciarCronometro();
+    atualizarFilaDiscussao();
+    salvarEstadoTelao();
+}
+
+function pausarOradorDiscussao(index){
+    const orador = filaDiscussaoOradores[index];
+    if(!orador) return;
+
+    if(!speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        return;
+    }
+
+    pausarCronometro();
+    orador.tempo = tempoRestante;
+    atualizarFilaDiscussao();
+    salvarEstadoTelao();
+}
+
+function adicionarTempoOradorDiscussao(index, segundos){
+    const orador = filaDiscussaoOradores[index];
+    if(!orador) return;
+
+    orador.tempo += segundos;
+
+    if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        tempoInicial += segundos;
+        tempoRestante += segundos;
+        atualizarCronometro();
+    }
+
+    atualizarFilaDiscussao();
+    salvarEstadoTelao();
+}
+
+function encerrarOradorDiscussao(index){
+    const orador = filaDiscussaoOradores[index];
+    if(!orador) return;
+
+    if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        pausarCronometro();
+        definirOradorAtual("none");
+        tempoInicial = 300;
+        tempoRestante = 300;
+        atualizarCronometro();
+    }
+
+    filaDiscussaoOradores.splice(index, 1);
+    atualizarFilaDiscussao();
+    salvarEstadoTelao();
+}
+
+function abrirMenuTempoDiscussao(event, index){
+    event.stopPropagation();
+
+    const orador = filaDiscussaoOradores[index];
+    if(!orador) return;
+
+    const botao = event.currentTarget;
+    const menuExistente = menuTempoExtraAberto;
+    fecharMenuTempoExtra();
+
+    if(menuExistente && menuExistente.dataset.alvo === "disc_" + index){
+        return;
+    }
+
+    const menu = document.createElement("div");
+    menu.className = "tempoExtraMenuFlutuante";
+    menu.dataset.alvo = "disc_" + index;
+
+    opcoesTempoExtraOrador.forEach(opcao => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "tempoExtraOpcao";
+        item.textContent = opcao.label;
+        item.onclick = function(e){
+            e.stopPropagation();
+            adicionarTempoOradorDiscussao(index, opcao.segundos);
+            fecharMenuTempoExtra();
+        };
+        menu.appendChild(item);
+    });
+
+    document.body.appendChild(menu);
+
+    const menuRect = menu.getBoundingClientRect();
+    const botaoRect = botao.getBoundingClientRect();
+    const margem = 8;
+    const larguraDisponivel = window.innerWidth - (margem * 2);
+
+    let left = botaoRect.right - menuRect.width;
+    left = Math.max(margem, Math.min(left, margem + larguraDisponivel - menuRect.width));
+
+    let top = botaoRect.bottom + 4;
+    if(top + menuRect.height > window.innerHeight - margem){
+        top = Math.max(margem, botaoRect.top - menuRect.height - 4);
+    }
+
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
+    menuTempoExtraAberto = menu;
+}
+
+function atualizarFilaDiscussao(){
+    const div = document.getElementById("filaDiscussaoOradores");
+    if(!div) return;
+
+    div.innerHTML = "";
+
+    if(filaDiscussaoOradores.length === 0){
+        div.innerHTML = "<div style='color:#888;padding:8px;text-align:center;font-size:13px;'>Nenhum orador na fila</div>";
+        return;
+    }
+
+    filaDiscussaoOradores.forEach((orador, index) => {
+        const container = document.createElement("div");
+        container.className = "itemFilaContainer";
+
+        const item = document.createElement("div");
+        const itemAtivo = speakerAtualEhAlvo("orador", orador.nome, null, null);
+        item.className = "itemFila" + (itemAtivo ? " emUso" : "");
+
+        const nomeSeguro = String(orador.nome)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+        item.innerHTML = `
+            <button
+            class="nomeOradorBtn"
+            onclick="event.stopPropagation(); iniciarOradorDiscussao(${index})">
+                ${index + 1}. ${nomeSeguro}
+                <br>
+                <small style="color:#888;font-size:10px;">Vereador - ${formatarTempo(orador.tempo)}</small>
+            </button>
+
+            <div class="botoesDireita">
+                <div class="controlesFala">
+                    <button
+                    class="btnControleFila btnIniciarFila"
+                    onclick="event.stopPropagation(); iniciarOradorDiscussao(${index})">
+                        Iniciar
+                    </button>
+
+                    <button
+                    class="btnControleFila btnPausarFila"
+                    ${itemAtivo ? "" : "disabled"}
+                    onclick="event.stopPropagation(); pausarOradorDiscussao(${index})">
+                        Pausar
+                    </button>
+
+                    <div class="tempoExtraDropdown">
+                        <button
+                        class="btnControleFila btnTempoExtraFila"
+                        data-alvo="disc_${index}"
+                        onclick="abrirMenuTempoDiscussao(event, ${index})">
+                            Tempo
+                        </button>
+                    </div>
+
+                    <button
+                    class="btnControleFila"
+                    style="background:#607d8b;"
+                    ${itemAtivo ? "" : "disabled"}
+                    onclick="event.stopPropagation(); encerrarOradorDiscussao(${index})">
+                        Encerrar
+                    </button>
+                </div>
+
+                <div class="setasContainer">
+                    <button onclick="subirOradorDiscussao(${index})">^</button>
+                    <button onclick="descerOradorDiscussao(${index})">v</button>
+                </div>
+
+                <button class="btnMais"
+                style="background:#d32f2f;"
+                onclick="removerOradorDiscussao(${index})"
+                title="Remover da fila">
+                    x
+                </button>
+            </div>
+        `;
+
+        container.appendChild(item);
+        div.appendChild(container);
+    });
+}
 
 function atualizarHistoricoDiscussao(){
 
@@ -1435,10 +2213,17 @@ function encerrarCronometro(){
         atualizarHistoricoOradores();
     }
 
+    const speakerAntesDeEncerrar = { ...speakerAtual };
+
+    if(modoSessao === "tribuna"){
+        consumirTempoTribunaAtual();
+    }
+
     definirOradorAtual("none");
 
     if(modoSessao === "tribuna"){
         oradorTribunaLivre = null;
+        atualizarFilaTribuna();
     }
 
     salvarEstadoTelao();
@@ -2641,6 +3426,38 @@ function carregarConvidados(){
 
     `;
 
+    painelEsquerdo.innerHTML = `
+
+        <h2 style="text-align:center;">
+            Inserir Convidado/Convocado
+        </h2>
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0;">
+            <input
+            id="nomeConvidadoExterno"
+            placeholder="Nome do(a) Convidado(a)"
+            style="width:100%;max-width:300px;">
+
+            <button
+            id="btnAdicionarConvidado"
+            class="botaoVereador"
+            style="width:100%;max-width:300px;background:#2b7cd3;color:white;font-size:14px;">
+
+                Adicionar Convidado/Convocado
+
+            </button>
+        </div>
+
+        <hr style="margin:15px 0;">
+
+        <h2 style="text-align:center;">
+            Vereadores
+        </h2>
+
+        <div id="listaVereadoresConvidados"></div>
+
+    `;
+
     // Renderizar lista de vereadores
     const listaVereadores = document.getElementById("listaVereadoresConvidados");
     vereadores.forEach(nome => {
@@ -2675,7 +3492,6 @@ function carregarConvidados(){
     salvarEstadoTelao();
 
     atualizarFilaConvidados();
-    atualizarHistoricoConvidados();
 }
 
 function adicionarOradorConvidados(tipo, nome){
@@ -2796,12 +3612,6 @@ function encerrarOradorConvidados(index){
 
     pausarCronometro();
 
-    // Adicionar ao histórico
-    if(!historicoConvidados.includes(orador.nome)){
-        historicoConvidados.push(orador.nome);
-    }
-    atualizarHistoricoConvidados();
-
     // Remover da fila
     filaConvidadosOradores.splice(index, 1);
 
@@ -2889,7 +3699,7 @@ function atualizarFilaConvidados(){
 
         item.className = "itemFila" + (itemAtivo ? " emUso" : "");
 
-        const tipoLabel = orador.tipo === "convidado" ? "🎤 Convidado" : "🏛 Vereador";
+        const tipoLabel = orador.tipo === "convidado" ? "Convidado" : "Vereador";
 
         item.innerHTML = `
 
