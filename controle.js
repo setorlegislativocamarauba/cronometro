@@ -4,6 +4,21 @@
 ESTADO GLOBAL
 ========================== */
 
+let temaAtual = localStorage.getItem("tema_sessao") || "claro";
+if (temaAtual === "escuro") {
+    document.body.classList.add("dark-mode");
+}
+
+function alterarTema(novoTema) {
+    temaAtual = novoTema;
+    localStorage.setItem("tema_sessao", novoTema);
+    if (novoTema === "escuro") {
+        document.body.classList.add("dark-mode");
+    } else {
+        document.body.classList.remove("dark-mode");
+    }
+}
+
 let modoSessao =
 "tela_simples";
 let historicoDiscussao = [];
@@ -950,8 +965,8 @@ function atualizarFilaTribuna(){
                 </div>
 
                 <div class="setasContainer">
-                    <button onclick="subirOradorTribuna(${index})">^</button>
-                    <button onclick="descerOradorTribuna(${index})">v</button>
+                    <button onclick="subirOradorTribuna(${index})">▲</button>
+                    <button onclick="descerOradorTribuna(${index})">▼</button>
                 </div>
 
                 <button class="btnMais"
@@ -1519,6 +1534,22 @@ function renderizarAdministrador(lista = vereadoresCadastro){
     painelEsquerdo.innerHTML = "";
 
     painelCentro.innerHTML = `
+        <h2>Configurações do Sistema</h2>
+        <div style="display:flex; justify-content:center; margin-top: 15px; margin-bottom: 25px;">
+            <div class="theme-selector">
+                <label>
+                    <input type="radio" name="tema_admin" value="claro" ${temaAtual === 'claro' ? 'checked' : ''} onchange="alterarTema('claro')">
+                    <span class="theme-label">☀️ Modo Claro</span>
+                </label>
+                <label>
+                    <input type="radio" name="tema_admin" value="escuro" ${temaAtual === 'escuro' ? 'checked' : ''} onchange="alterarTema('escuro')">
+                    <span class="theme-label">🌙 Modo Escuro</span>
+                </label>
+            </div>
+        </div>
+        
+        <hr class="hrAdmin" style="margin-bottom: 25px; border: 0; border-top: 1px solid #ddd;">
+
         <h2>Cadastro de Vereadores</h2>
         <div id="listaAdministradorVereadores" class="adminListaVereadores"></div>
         <button id="btnAdicionarAdminVereador" class="botaoVereador adminAdicionar">+ Adicionar Vereador</button>
@@ -1526,6 +1557,9 @@ function renderizarAdministrador(lista = vereadoresCadastro){
             <button id="btnSalvarAdmin" class="botaoAdmin botaoAdminSalvar">Salvar Altera\u00e7\u00f5es</button>
             <button id="btnCancelarAdmin" class="botaoAdmin botaoAdminCancelar">Cancelar</button>
             <button id="btnRestaurarAdmin" class="botaoAdmin botaoAdminRestaurar">Restaurar Lista Padr\u00e3o</button>
+        </div>
+        <div style="margin-top: 40px; text-align: center; color: #888; font-size: 13px; font-weight: bold;">
+            Versão 1.4
         </div>
     `;
 
@@ -1539,8 +1573,8 @@ function renderizarAdministrador(lista = vereadoresCadastro){
             linha.dataset.id = vereador.id || gerarIdVereador();
             linha.innerHTML = `
                 <input type="text" value="${String(vereador.nome || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}">
-                <button type="button" data-acao="subir">^</button>
-                <button type="button" data-acao="descer">v</button>
+                <button type="button" data-acao="subir">▲</button>
+                <button type="button" data-acao="descer">▼</button>
                 <button type="button" data-acao="excluir">Excluir</button>
             `;
 
@@ -1929,8 +1963,8 @@ function atualizarFilaDiscussao(){
                 </div>
 
                 <div class="setasContainer">
-                    <button onclick="subirOradorDiscussao(${index})">^</button>
-                    <button onclick="descerOradorDiscussao(${index})">v</button>
+                    <button onclick="subirOradorDiscussao(${index})">▲</button>
+                    <button onclick="descerOradorDiscussao(${index})">▼</button>
                 </div>
 
                 <button class="btnMais"
@@ -2620,6 +2654,47 @@ function renderizarControlesItemFila(tipo, nome, nomeOriginal, indexReplica, ite
     `;
 }
 
+function removerOradorConsideracoes(index){
+    const orador = filaConsideracoes[index];
+    if(!orador) return;
+
+    if(speakerAtualEhAlvo("orador", orador, null, null)){
+        pausarCronometro();
+        definirOradorAtual("none");
+        tempoInicial = 300;
+        tempoRestante = 300;
+        atualizarCronometro();
+    }
+
+    const chaveReplicas = buscarChaveReplicas(orador);
+    if(chaveReplicas){
+        delete replicasPorOrador[chaveReplicas];
+    }
+
+    filaConsideracoes.splice(index, 1);
+    atualizarFilaConsideracoes();
+    salvarEstadoTelao();
+}
+
+function removerReplicaConsideracoes(nomeOriginal, indexReplica){
+    const replicas = replicasPorOrador[nomeOriginal];
+    if(!replicas || !replicas[indexReplica]) return;
+
+    const replica = replicas[indexReplica];
+
+    if(speakerAtualEhAlvo("replica", replica.nome, nomeOriginal, indexReplica)){
+        pausarCronometro();
+        definirOradorAtual("none");
+        tempoInicial = 300;
+        tempoRestante = 300;
+        atualizarCronometro();
+    }
+
+    replicas.splice(indexReplica, 1);
+    atualizarFilaConsideracoes();
+    salvarEstadoTelao();
+}
+
 function atualizarFilaConsideracoes(){
 
     const div =
@@ -2713,6 +2788,13 @@ function atualizarFilaConsideracoes(){
 
                 </button>
 
+                <button class="btnMais"
+                style="background:#d32f2f;"
+                onclick="event.stopPropagation(); removerOradorConsideracoes(${index})"
+                title="Remover da fila">
+                    x
+                </button>
+
             </div>
 
         `;
@@ -2756,6 +2838,12 @@ function atualizarFilaConsideracoes(){
                             <button onclick="subirReplica('${nome}', ${repIndex})">▲</button>
                             <button onclick="descerReplica('${nome}', ${repIndex})">▼</button>
                         </div>
+                        <button class="btnMais"
+                        style="background:#d32f2f;"
+                        onclick="event.stopPropagation(); removerReplicaConsideracoes('${nome}', ${repIndex})"
+                        title="Remover réplica">
+                            x
+                        </button>
                     </div>
                 `;
 
