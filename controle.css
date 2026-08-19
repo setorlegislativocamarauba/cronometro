@@ -18,6 +18,8 @@ body{
 
     display:flex;
 
+    flex-wrap:wrap;
+
     justify-content:center;
 
     gap:10px;
@@ -53,6 +55,8 @@ body{
     border-radius:8px;
 
     cursor:pointer;
+    
+    white-space:nowrap;
 
 }
 
@@ -263,6 +267,10 @@ body{
 
     gap:15px;
 
+}
+
+.btn-notificacao {
+    padding: 6px 16px !important;
 }
 
 .acoes{
@@ -936,4 +944,157 @@ input{
 .itemFila:hover,
 .itemReplicaNaFila:hover{
     filter:brightness(0.95);
+}
+
+/* TEMA ESCURO */
+/* TEMA SELECTOR ELEGANTE */
+.theme-selector {
+    display: inline-flex;
+    background: #e5e7eb;
+    padding: 4px;
+    border-radius: 30px;
+    gap: 4px;
+}
+.theme-selector label {
+    cursor: pointer;
+    position: relative;
+    margin: 0;
+}
+.theme-selector input[type="radio"] {
+    display: none;
+}
+.theme-selector .theme-label {
+    display: block;
+    padding: 8px 24px;
+    border-radius: 26px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #6b7280;
+    transition: all 0.3s ease;
+}
+.theme-selector input[type="radio"]:checked + .theme-label {
+    background: #ffffff;
+    color: #1d4ed8;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+body.dark-mode {
+    background: #121212;
+    color: #e0e0e0;
+}
+body.dark-mode .theme-selector {
+    background: #27272a;
+}
+body.dark-mode .theme-selector .theme-label {
+    color: #a1a1aa;
+}
+body.dark-mode .theme-selector input[type="radio"]:checked + .theme-label {
+    background: #3f3f46;
+    color: #60a5fa;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+body.dark-mode .modosSessao {
+    background: #1e1e1e;
+    border-bottom-color: #333;
+}
+body.dark-mode .painel, 
+body.dark-mode .painelPrincipal {
+    background: #1e1e1e;
+    box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+body.dark-mode .painel h2,
+body.dark-mode .painelPrincipal h2 {
+    color: #e0e0e0;
+}
+body.dark-mode .painel h3,
+body.dark-mode .painelPrincipal h3 {
+    color: #ddd;
+}
+body.dark-mode #tituloSessao {
+    color: #64b5f6;
+}
+body.dark-mode .tituloStatus,
+body.dark-mode #proximoOrador {
+    color: #aaa;
+}
+body.dark-mode #oradorAtual {
+    color: #64b5f6;
+}
+body.dark-mode #oradorAtual small {
+    color: #aaa;
+}
+body.dark-mode .botaoVereador {
+    background: #2c2c2c;
+    color: #e0e0e0;
+}
+body.dark-mode input {
+    background: #333;
+    color: #e0e0e0;
+    border: 1px solid #555;
+}
+body.dark-mode .adminVereadorLinha {
+    background: #2c2c2c;
+}
+body.dark-mode .itemFila,
+body.dark-mode .itemEncerrado {
+    background: #2c2c2c;
+    color: #e0e0e0;
+}
+body.dark-mode .itemReplicaNaFila,
+body.dark-mode .itemReplicaHistorico,
+body.dark-mode .replica-orador-container {
+    background: #311b42;
+    color: #e0e0e0;
+    border-left-color: #8e24aa;
+}
+body.dark-mode .replica-orador-header {
+    color: #ce93d8;
+}
+body.dark-mode .nomeOradorBtn {
+    color: #e0e0e0;
+}
+body.dark-mode .nomeOradorBtn:hover {
+    background: rgba(100, 181, 246, 0.1);
+}
+body.dark-mode .tempoExtraMenuFlutuante {
+    background: #2c2c2c;
+    border-color: #444;
+}
+body.dark-mode .tempoExtraOpcao {
+    background: #1e3a5f;
+    color: #90caf9;
+}
+body.dark-mode .tempoExtraOpcao:hover {
+    background: #2c5282;
+}
+body.dark-mode .itemFila.emUso,
+body.dark-mode .itemReplicaNaFila.emUso,
+body.dark-mode .itemReplica.emUso {
+    background: #1b3a1e;
+    outline-color: #4caf50;
+}
+body.dark-mode .modal-replica-select {
+    background: #1e1e1e;
+    color: #e0e0e0;
+}
+body.dark-mode .modal-replica-select h3 {
+    color: #e0e0e0;
+}
+body.dark-mode .modal-checkbox-label {
+    background: #2c2c2c;
+    color: #e0e0e0;
+}
+body.dark-mode .modal-checkbox-label:hover {
+    background: #3c3c3c;
+}
+body.dark-mode hr {
+    border-color: #444;
+}
+body.dark-mode .hrAdmin {
+    border-top-color: #444 !important;
+}
+body.dark-mode .itemFila.selected,
+body.dark-mode .itemReplicaNaFila.selected {
+    background: #153d66 !important;
+    border-color: #64b5f6 !important;
 }
