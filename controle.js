@@ -741,7 +741,7 @@ function registrarConvidado(){
     const nome = nomeInput.value.trim();
 
     if(nome === ""){
-        alert("Por favor, insira um nome");
+        showToast("Por favor, insira um nome", true);
         return;
     }
 
@@ -1614,7 +1614,7 @@ function selecionarModo(
                 localStorage.setItem("saplSessaoIdHistory", JSON.stringify(history));
                 
                 document.getElementById("saplHistoryWrapper").innerHTML = renderHistory();
-                alert("ID da Sessão salvo com sucesso!");
+                showToast("ID da Sessão salvo com sucesso!");
             });
         }
         containerSaplConfig.style.display = "flex";
@@ -3898,7 +3898,7 @@ function carregarConvidados(){
         const input = document.getElementById("nomeConvidadoExterno");
         const nome = input.value.trim();
         if(nome === ""){
-            alert("Por favor, insira o nome do convidado");
+            showToast("Por favor, insira o nome do convidado", true);
             return;
         }
         adicionarOradorConvidados("convidado", nome);
@@ -4334,7 +4334,7 @@ function carregarAudiencia(){
         const input = document.getElementById("nomeAudienciaExterno");
         const nome = input.value.trim();
         if(nome === ""){
-            alert("Por favor, insira o nome do audiencia");
+            showToast("Por favor, insira o nome do participante", true);
             return;
         }
         adicionarOradorAudiencia("audiencia", nome);
