@@ -75,14 +75,19 @@ body::before{
     height:40px;
 }
 .titulo-sessao-telao{
-    font-size: 70px;
+    font-size: clamp(30px, 4vw, 65px);
+    line-height: 1.1;
     font-weight: bold;
     color: #fff;
     margin-top: 10px;
-	text-decoration: underline;
-text-decoration-thickness: 1px;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
     flex:0 0 auto;
-    height:90px;
+    min-height:90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 .status-telao{
@@ -236,8 +241,7 @@ text-decoration-thickness: 1px;
 <script>
 
 // Sincronizar com a aba principal usando localStorage
-setInterval(()=>{
-    
+function atualizarTelao() {
     try{
         const dados = JSON.parse(localStorage.getItem('estadoCronometro') || '{}');
         const modo = dados.modoSessao || 'consideracoes';
@@ -302,9 +306,9 @@ setInterval(()=>{
             }else{
                 cronEl.classList.remove('cronometroPiscando');
             }
-            // Cor do cronômetro branca por padrão, muda conforme o tempo
-            // O controle.js já envia a cor correta via dados.cronometroCor
-            cronEl.style.color = dados.cronometroCor || '#fff';
+            
+            const baseTimerColor = localStorage.getItem('corCronometro') || '#fff';
+            cronEl.style.color = dados.cronometroCor || baseTimerColor;
         }
         
         const proximoEl = document.getElementById('proximoOradorTelao');
@@ -315,13 +319,16 @@ setInterval(()=>{
             proximoEl.style.display = 'none';
         }
         
-        // O modo convidados mostra o botão "Iniciar" e "Pausar" normalmente sem "Próximo Orador"
-        
     } catch(e){
         console.log('Erro ao sincronizar:', e);
     }
-    
-}, 500);
+}
+
+// Inicia na primeira carga
+atualizarTelao();
+
+// Atualiza instantaneamente sempre que houver mudanças
+window.addEventListener('storage', atualizarTelao);
 
 function atualizarRelogio(){
     const agora = new Date();
