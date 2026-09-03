@@ -25,10 +25,11 @@
             display: grid;
             grid-template-columns: 1fr auto 1fr;
             align-items: center;
-            background-color: #00447c;
-            color: #fff;
+            background-color: #ffffff;
+            color: #333333;
             padding: 20px 40px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-bottom: 3px solid #e2e8f0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
         
         .brasao-container {
@@ -39,26 +40,30 @@
 
         .brasao {
             height: 80px;
-            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));
+            
         }
 
         .header-titles {
             display: flex;
             flex-direction: column;
-            text-align: center;
+            text-align: left;
+            padding-left: 10px;
         }
 
         h1 {
-            font-size: 32px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+            font-size: 30px;
+            font-weight: 600;
+            letter-spacing: 0px;
+            text-transform: none;
+            color: #2c3e50;
+            margin: 0;
+            line-height: 1.2;
         }
 
         .subtitle {
-            font-size: 18px;
-            color: #b3d4ff;
-            margin-top: 5px;
+            font-size: 22px;
+            color: #4a5568;
+            margin-top: 2px;
             font-weight: 500;
         }
 
@@ -208,7 +213,8 @@
             <img src="https://setorlegislativocamarauba.github.io/cronometro/Brasao_Uba.png" alt="Brasão de Ubá" class="brasao">
         </div>
         <div class="header-titles">
-            <h1>Câmara Municipal de Ubá/MG</h1>
+            <h1>Câmara Municipal de Ubá</h1>
+            <div class="subtitle">Estado de Minas Gerais</div>
         </div>
         <div></div>
     </header>
