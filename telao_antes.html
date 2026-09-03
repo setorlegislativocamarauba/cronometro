@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telão - Antes da Sessão</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #f0f4f8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            overflow: hidden; /* Hide scrollbars for the telão */
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #00447c;
+            color: #fff;
+            padding: 20px 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .brasao {
+            height: 80px;
+            margin-right: 25px;
+        }
+
+        .header-titles {
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #b3d4ff;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .session-info {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .session-info h2 {
+            font-size: 28px;
+            color: #00447c;
+            margin-bottom: 5px;
+        }
+
+        .session-info h3 {
+            font-size: 22px;
+            color: #555;
+            font-weight: normal;
+        }
+
+        /* Carousel Container */
+        .carousel-container {
+            width: 100%;
+            max-width: 1200px;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .carousel-track {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            transition: transform 1s ease-in-out;
+        }
+
+        .carousel-page {
+            min-width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 10px;
+        }
+
+        /* Cards */
+        .materia-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 25px 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-left: 6px solid #00447c;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .materia-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .materia-titulo {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1a202c;
+        }
+
+        .materia-autor {
+            font-size: 16px;
+            color: #718096;
+            background: #edf2f7;
+            padding: 5px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        .materia-ementa {
+            font-size: 18px;
+            color: #4a5568;
+            line-height: 1.5;
+            text-align: justify;
+        }
+
+        /* Loading / Error */
+        .status-message {
+            font-size: 24px;
+            color: #666;
+            margin-top: 100px;
+        }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #10b981;
+            width: 0%;
+        }
+
+        .page-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #cbd5e0;
+            transition: background 0.3s;
+        }
+
+        .dot.active {
+            background: #00447c;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <img src="https://setorlegislativocamarauba.github.io/cronometro/Brasao_Uba.png" alt="Brasão de Ubá" class="brasao">
+        <div class="header-titles">
+            <h1>Câmara Municipal de Ubá/MG</h1>
+            <div class="subtitle">Poder Legislativo</div>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="session-info" id="sessionInfo" style="display: none;">
+            <h2 id="sessionTitle"></h2>
+            <h3>Ordem do Dia</h3>
+        </div>
+
+        <div class="status-message" id="statusMessage">Carregando informações da sessão...</div>
+
+        <div class="carousel-container" id="carouselContainer" style="display: none;">
+            <div class="carousel-track" id="carouselTrack">
+                <!-- Pages will be injected here -->
+            </div>
+            
+            <div class="page-indicator" id="pageIndicator"></div>
+            
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sessaoId = localStorage.getItem("saplSessaoId");
+        const track = document.getElementById("carouselTrack");
+        const statusMessage = document.getElementById("statusMessage");
+        const sessionInfo = document.getElementById("sessionInfo");
+        const carouselContainer = document.getElementById("carouselContainer");
+        const pageIndicator = document.getElementById("pageIndicator");
+        const progressBar = document.getElementById("progressBar");
+        
+        let currentPage = 0;
+        let totalPages = 0;
+        const ITEMS_PER_PAGE = 3;
+        const TRANSITION_DELAY_MS = 10000; // 10 seconds
+
+        async function init() {
+            if (!sessaoId) {
+                statusMessage.innerHTML = "ID da Sessão não configurado.<br><span style='font-size:18px'>Configure na aba Administrador.</span>";
+                return;
+            }
+
+            try {
+                const response = await fetch('https://pauta-camara-uba.camara-uba.workers.dev/pauta/' + sessaoId);
+                const data = await response.json();
+
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || data.mensagem || "Erro ao carregar dados");
+                }
+
+                renderData(data);
+
+            } catch (err) {
+                console.error(err);
+                statusMessage.textContent = "Erro ao carregar matérias: " + err.message;
+            }
+        }
+
+        function renderData(data) {
+            statusMessage.style.display = "none";
+            sessionInfo.style.display = "block";
+            carouselContainer.style.display = "block";
+
+            // Title
+            let tipo = data.sessao.tipo || "Ordinária";
+            let numero = data.sessao.numero || "";
+            let ano = data.sessao.ano || "";
+            document.getElementById("sessionTitle").textContent = `Reunião ${tipo.toUpperCase()} - Pauta N.º ${numero}/${ano}`;
+
+            const materias = data.ordemDoDia || [];
+
+            if (materias.length === 0) {
+                track.innerHTML = "<div class='status-message' style='margin-top:50px'>Nenhuma matéria na Ordem do Dia para esta sessão.</div>";
+                return;
+            }
+
+            // Chunk materias into pages
+            const pages = [];
+            for (let i = 0; i < materias.length; i += ITEMS_PER_PAGE) {
+                pages.push(materias.slice(i, i + ITEMS_PER_PAGE));
+            }
+            totalPages = pages.length;
+
+            // Build DOM
+            pages.forEach((pageItems, index) => {
+                const pageEl = document.createElement("div");
+                pageEl.className = "carousel-page";
+                
+                pageItems.forEach(item => {
+                    const card = document.createElement("div");
+                    card.className = "materia-card";
+                    card.innerHTML = `
+                        <div class="materia-header">
+                            <div class="materia-titulo">${item.identificacao}</div>
+                            ${item.autor ? `<div class="materia-autor">${item.autor}</div>` : ''}
+                        </div>
+                        <div class="materia-ementa">${item.ementa}</div>
+                    `;
+                    pageEl.appendChild(card);
+                });
+
+                track.appendChild(pageEl);
+
+                // Add dot
+                const dot = document.createElement("div");
+                dot.className = "dot";
+                if (index === 0) dot.classList.add("active");
+                pageIndicator.appendChild(dot);
+            });
+
+            if (totalPages > 1) {
+                startCarousel();
+            }
+        }
+
+        function startCarousel() {
+            // Animate progress bar
+            progressBar.style.transition = `width ${TRANSITION_DELAY_MS}ms linear`;
+            
+            setInterval(() => {
+                currentPage = (currentPage + 1) % totalPages;
+                
+                // Slide track
+                track.style.transform = `translateX(-${currentPage * 100}%)`;
+
+                // Update dots
+                const dots = document.querySelectorAll('.dot');
+                dots.forEach((dot, idx) => {
+                    dot.classList.toggle('active', idx === currentPage);
+                });
+
+                // Reset and restart progress bar animation
+                progressBar.style.transition = 'none';
+                progressBar.style.width = '0%';
+                
+                // Force reflow
+                void progressBar.offsetWidth;
+                
+                progressBar.style.transition = `width ${TRANSITION_DELAY_MS}ms linear`;
+                progressBar.style.width = '100%';
+
+            }, TRANSITION_DELAY_MS);
+
+            // Initial progress bar trigger
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+            }, 50);
+        }
+
+        init();
+
+    </script>
+</body>
+</html>

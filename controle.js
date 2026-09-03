@@ -19,10 +19,76 @@ function alterarTema(novoTema) {
     }
 }
 
+/* ==========================
+DRAG AND DROP HELPER
+========================== */
+function configurarDragAndDrop(el, index, array, callbackUpdateView, listId) {
+    el.draggable = true;
+    
+    el.ondragstart = (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('application/json', JSON.stringify({ index, listId }));
+        setTimeout(() => el.classList.add('dragging'), 0);
+    };
+    
+    el.ondragover = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+    
+    el.ondragenter = (e) => {
+        e.preventDefault();
+        el.classList.add('drag-over');
+    };
+    
+    el.ondragleave = (e) => {
+        el.classList.remove('drag-over');
+    };
+    
+    el.ondrop = (e) => {
+        e.preventDefault();
+        el.classList.remove('drag-over');
+        try {
+            const data = JSON.parse(e.dataTransfer.getData('application/json'));
+            if (data.listId !== listId) return;
+            const originIndex = parseInt(data.index, 10);
+            if (isNaN(originIndex) || originIndex === index) return;
+            
+            let targetArray = array;
+            if (listId === 'admin' && typeof obterDadosFormularioAdministrador === "function") {
+                targetArray = obterDadosFormularioAdministrador();
+            }
+            
+            const item = targetArray.splice(originIndex, 1)[0];
+            targetArray.splice(index, 0, item);
+            
+            if (listId === 'admin') {
+                callbackUpdateView(targetArray); // in admin we might need to pass the new array
+            } else {
+                callbackUpdateView();
+            }
+            
+            if (typeof salvarEstado === "function" && listId !== "admin") salvarEstado();
+        } catch(err) {
+            // Error handling JSON
+        }
+    };
+    
+    el.ondragend = (e) => {
+        el.classList.remove('dragging');
+        document.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over'));
+    };
+}
+
 let modoSessao =
 "tela_simples";
 let historicoDiscussao = [];
+let filaTribunaOradores = [];
 let filaDiscussaoOradores = [];
+let filaConvidadosOradores = [];
+let historicoConvidados = [];
+let convidadosAdicionados = [];
+
 
 let historicoOradores = [];
 
@@ -258,7 +324,7 @@ let oradorAtualConsideracoes = null;
 let tempoExtraAtivo = true;
 let alarmeAtivo = true;
 let oradorTribunaLivre = null;
-let filaTribunaOradores = [];
+
 let filaReplicas = [];
 let selectedSpeaker = null;
 
@@ -266,9 +332,6 @@ let selectedSpeaker = null;
 CONVIDADOS - ESTADO
 ========================== */
 
-let filaConvidadosOradores = []; // Array de { tipo: "vereador" | "convidado", nome: string }
-let historicoConvidados = []; // Array de nomes dos que já falaram
-let convidadosAdicionados = []; // Array de nomes dos convidados já adicionados à fila
 let tempoInicialConvidado = 120; // Tempo padrão em segundos para convidados
 
 const opcoesTempoExtraOrador = [
@@ -280,6 +343,7 @@ const opcoesTempoExtraOrador = [
 
 // Opções de tempo para o modo Convidados - de 30s até 15min
 const opcoesTempoConvidado = [];
+opcoesTempoConvidado.push({ label: "Sem tempo", segundos: 0 });
 for(let i = 30; i <= 60; i += 30){
     opcoesTempoConvidado.push({ label: (i === 30 ? "30 segundos" : "1 minuto"), segundos: i });
 }
@@ -423,7 +487,7 @@ TELAS
 
 function carregarDiscussao(){
 
-    filaDiscussaoOradores = [];
+    
 
     painelEsquerdo.innerHTML = `
 
@@ -555,7 +619,7 @@ function carregarConsideracoes(){
 
 function carregarTribuna(){
 
-    filaTribunaOradores = [];
+    
     painelEsquerdo.innerHTML = `
 
         <h2 style="text-align:center;">
@@ -657,12 +721,7 @@ function carregarTribuna(){
     // Adicionar listener para registrar convidado
     document.getElementById("btnRegistrarConvidado").addEventListener("click", registrarConvidado);
 
-    pausarCronometro();
-    definirOradorAtual("none");
-    tempoInicial = 300;
-    tempoRestante = 300;
-    document.getElementById("cronometro").style.display = "none";
-    salvarEstadoTelao();
+    
 
     atualizarFilaTribuna();
 
@@ -804,10 +863,14 @@ function adicionarTempoOradorTribuna(index, segundos){
 
     const cronEl = document.getElementById("cronometro");
     if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
-        cronEl.style.display = "";
-        tempoInicial = segundos;
-        tempoRestante = segundos;
-        atualizarCronometro();
+        if(segundos <= 0){
+            cronEl.style.display = "none";
+        } else {
+            cronEl.style.display = "";
+            tempoInicial = segundos;
+            tempoRestante = segundos;
+            atualizarCronometro();
+        }
     }
 
     atualizarFilaTribuna();
@@ -903,6 +966,8 @@ function atualizarFilaTribuna(){
     filaTribunaOradores.forEach((orador, index) => {
         const container = document.createElement("div");
         container.className = "itemFilaContainer";
+        
+        configurarDragAndDrop(container, index, filaTribunaOradores, atualizarFilaTribuna, 'tribuna');
 
         const item = document.createElement("div");
         const itemAtivo = speakerAtualEhAlvo("orador", orador.nome, null, null);
@@ -1211,11 +1276,7 @@ function selecionarModo(
             container.style.display = "";
         }
 
-        pausarCronometro();
-        definirOradorAtual("none");
-        tempoInicial = 300;
-        tempoRestante = 300;
-        atualizarCronometro();
+        
         if(tituloStatusEl) tituloStatusEl.style.display = "none";
         if(oradorStatusEl) oradorStatusEl.style.display = "none";
         if(cronometroEl) cronometroEl.style.display = "none";
@@ -1424,7 +1485,7 @@ function selecionarModo(
     ){
 
         tituloSessao.textContent =
-        "TELA SIMPLES";
+        "TELÃO";
 
         modoTelaSimples
         .classList.add(
@@ -1442,24 +1503,102 @@ function selecionarModo(
             container.style.display = "none";
         }
 
-        // Adicionar botão Telão abaixo do título, centralizado
-        let btnTelaoSimples = document.getElementById("btnTelaoSimples");
-        if(!btnTelaoSimples){
-            btnTelaoSimples = document.createElement("button");
+                // Container para os botões do Telão
+        let containerBotoesTelao = document.getElementById("containerBotoesTelao");
+        if(!containerBotoesTelao) {
+            containerBotoesTelao = document.createElement("div");
+            containerBotoesTelao.id = "containerBotoesTelao";
+            containerBotoesTelao.style.cssText = "display: flex; gap: 15px; justify-content: center; margin-top: 25px;";
+            
+            const btnTelaoAntes = document.createElement("button");
+            btnTelaoAntes.id = "btnTelaoAntes";
+            btnTelaoAntes.innerHTML = '<img class="iconeBotao" src="icons/tela-simples.svg" alt=""> Telão - Antes da Sessão';
+            btnTelaoAntes.style.cssText = "padding:12px 24px;background:#10b981;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;font-weight:bold; display: flex; align-items: center; gap: 8px;";
+            btnTelaoAntes.addEventListener("click", () => window.open("telao_antes.html", "telao_antes", "width=1280,height=720"));
+            
+            const btnTelaoSimples = document.createElement("button");
             btnTelaoSimples.id = "btnTelaoSimples";
-            btnTelaoSimples.innerHTML = '<img class="iconeBotao" src="icons/tela-simples.svg" alt=""> Tel\u00e3o';
-            btnTelaoSimples.style.cssText = "display:block;margin:15px auto 0;padding:10px 24px;background:#2b7cd3;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;font-weight:bold;";
+            btnTelaoSimples.innerHTML = '<img class="iconeBotao" src="icons/tela-simples.svg" alt=""> Telão - Sessão Iniciada';
+            btnTelaoSimples.style.cssText = "padding:12px 24px;background:#2b7cd3;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;font-weight:bold; display: flex; align-items: center; gap: 8px;";
             btnTelaoSimples.addEventListener("click", abrirTelao);
-            tituloSessao.parentNode.insertBefore(btnTelaoSimples, tituloSessao.nextSibling);
+            
+            containerBotoesTelao.appendChild(btnTelaoAntes);
+            containerBotoesTelao.appendChild(btnTelaoSimples);
+            
+            tituloSessao.parentNode.insertBefore(containerBotoesTelao, tituloSessao.nextSibling);
         }
-        btnTelaoSimples.style.display = "block";
+        containerBotoesTelao.style.display = "flex";
+        let containerSaplConfig = document.getElementById("containerSaplConfig");
+        if(!containerSaplConfig) {
+            containerSaplConfig = document.createElement("div");
+            containerSaplConfig.id = "containerSaplConfig";
+            containerSaplConfig.style.cssText = "margin-top: 30px; display: flex; flex-direction: column; align-items: center; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin-left: auto; margin-right: auto;";
+            
+            const saplSessaoId = localStorage.getItem("saplSessaoId") || "";
+            let history = [];
+            try {
+                history = JSON.parse(localStorage.getItem("saplSessaoIdHistory")) || [];
+            } catch(e) {}
+            
+            const renderHistory = () => {
+                if (history.length === 0) return "";
+                return '<div style="margin-top: 15px; font-size: 13px; color: #555; display:flex; align-items:center; gap: 8px;">' +
+                       '<span>Últimas utilizadas:</span> ' +
+                       history.map(id => '<span style="display:inline-block; padding: 4px 10px; background: #e2e8f0; border-radius: 12px; cursor: pointer; color: #00447c; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background=\'#cbd5e1\'" onmouseout="this.style.background=\'#e2e8f0\'" onclick="document.getElementById(\'saplSessaoIdInput\').value=\''+id+'\';">' + id + '</span>').join('') +
+                       '</div>';
+            };
+
+            containerSaplConfig.innerHTML = `
+                <h2 style="margin-top: 0; color: #00447c; font-size: 18px;">Integração SAPL (Telão Antes da Sessão)</h2>
+                <div style="display:flex; flex-direction:column; align-items:center; margin-top: 15px;">
+                    <label style="font-weight:bold; margin-bottom: 5px;">ID da Sessão no SAPL:</label>
+                    <div style="display:flex; gap: 10px;">
+                        <input type="text" id="saplSessaoIdInput" value="${saplSessaoId}" placeholder="Ex: 1947" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 120px; text-align: center;">
+                        <button id="btnSalvarSapl" style="margin: 0; padding: 8px 15px; background: #064f86; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Salvar ID</button>
+                    </div>
+                    <div id="saplHistoryWrapper">
+                        ${renderHistory()}
+                    </div>
+                </div>
+            `;
+            
+            tituloSessao.parentNode.insertBefore(containerSaplConfig, containerBotoesTelao.nextSibling);
+
+            document.getElementById("btnSalvarSapl").addEventListener("click", () => {
+                const val = document.getElementById("saplSessaoIdInput").value.trim();
+                if (!val) return;
+                
+                localStorage.setItem("saplSessaoId", val);
+                
+                // Update history
+                history = history.filter(id => id !== val);
+                history.unshift(val);
+                history = history.slice(0, 5); // Keep last 5
+                localStorage.setItem("saplSessaoIdHistory", JSON.stringify(history));
+                
+                document.getElementById("saplHistoryWrapper").innerHTML = renderHistory();
+                alert("ID da Sessão salvo com sucesso!");
+            });
+        }
+        containerSaplConfig.style.display = "flex";
+
 
     } else {
-        // Remover botão Telão da tela simples ao sair do modo
-        const btnTelaoSimples = document.getElementById("btnTelaoSimples");
-        if(btnTelaoSimples){
-            btnTelaoSimples.remove();
+        // Remover botões da tela simples ao sair do modo
+        const containerBotoesTelao = document.getElementById("containerBotoesTelao");
+        if(containerBotoesTelao) {
+            containerBotoesTelao.remove();
         }
+        const containerSaplConfig = document.getElementById("containerSaplConfig");
+        if(containerSaplConfig) containerSaplConfig.remove();
+
+        
+        // Limpar possíveis botões residuais antigos
+        const btnTelaoSimples = document.getElementById("btnTelaoSimples");
+        if(btnTelaoSimples) btnTelaoSimples.remove();
+        
+        const btnTelaoAntes = document.getElementById("btnTelaoAntes");
+        if(btnTelaoAntes) btnTelaoAntes.remove();
     }
 
     salvarEstadoTelao();
@@ -1533,43 +1672,109 @@ function renderizarAdministrador(lista = vereadoresCadastro){
     tituloSessao.textContent = "ADMINISTRADOR";
     painelEsquerdo.innerHTML = "";
 
+    const opacidadeAtual = localStorage.getItem("opacidadeBrasao") || "0.5";
+    const percentualAtual = Math.round(parseFloat(opacidadeAtual) * 100);
+    const corOradorAtual = localStorage.getItem("corNomeOrador") || "#ffffff";
+    const saplSessaoId = localStorage.getItem("saplSessaoId") || "";
+
     painelCentro.innerHTML = `
-        <h2>Configurações do Sistema</h2>
-        <div style="display:flex; justify-content:center; margin-top: 15px; margin-bottom: 25px;">
-            <div class="theme-selector">
-                <label>
-                    <input type="radio" name="tema_admin" value="claro" ${temaAtual === 'claro' ? 'checked' : ''} onchange="alterarTema('claro')">
-                    <span class="theme-label">☀️ Modo Claro</span>
-                </label>
-                <label>
-                    <input type="radio" name="tema_admin" value="escuro" ${temaAtual === 'escuro' ? 'checked' : ''} onchange="alterarTema('escuro')">
-                    <span class="theme-label">🌙 Modo Escuro</span>
-                </label>
+        <div class="admin-card">
+            <h2>Modo de Exibição</h2>
+            <div style="display:flex; justify-content:center; margin-top: 15px;">
+                <div class="theme-selector">
+                    <label>
+                        <input type="radio" name="tema_admin" value="claro" ${temaAtual === 'claro' ? 'checked' : ''} onchange="alterarTema('claro')">
+                        <span class="theme-label">☀️ Modo Claro</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="tema_admin" value="escuro" ${temaAtual === 'escuro' ? 'checked' : ''} onchange="alterarTema('escuro')">
+                        <span class="theme-label">🌙 Modo Escuro</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-card" style="display:flex; flex-direction:column; align-items:center;">
+            <h3 style="font-size:16px; color:inherit;">Opacidade do Brasão (Telão)</h3>
+            <input type="range" id="opacidadeBrasaoSlider" min="0" max="100" value="${percentualAtual}" style="width: 250px; cursor: pointer; margin-top: 10px;">
+            <span id="opacidadeBrasaoValor" style="margin-top: 5px; font-weight: bold; font-size:14px;">${percentualAtual}%</span>
+        </div>
+        
+        <div class="admin-card" style="display:flex; flex-direction:column; align-items:center;">
+            <h3 style="font-size:16px; color:inherit;">Cor do Nome do Orador (Telão)</h3>
+            <div id="paletaCoresOrador" style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                ${['#ffffff', '#ffeb3b', '#4caf50', '#2196f3', '#f44336', '#ff9800'].map(c => 
+                    `<div class="cor-swatch" data-cor="${c}" style="background-color: ${c}; width: 30px; height: 30px; border-radius: 50%; border: 2px solid #ccc; cursor: pointer;"></div>`
+                ).join('')}
+                <input type="color" id="corOradorPersonalizada" value="${corOradorAtual}" style="width: 35px; height: 35px; border: none; cursor: pointer; border-radius: 4px; padding: 0; background: none;">
+            </div>
+        </div>
+
+        
+        
+
+        <div class="admin-card">
+            <h2>Cadastro de Vereadores</h2>
+            <div id="listaAdministradorVereadores" class="adminListaVereadores"></div>
+            <button id="btnAdicionarAdminVereador" class="botaoVereador adminAdicionar">+ Adicionar Vereador</button>
+            <div class="adminAcoes">
+                <button id="btnSalvarAdmin" class="botaoAdmin botaoAdminSalvar">Salvar Altera\u00e7\u00f5es</button>
+                <button id="btnCancelarAdmin" class="botaoAdmin botaoAdminCancelar">Cancelar</button>
+                <button id="btnRestaurarAdmin" class="botaoAdmin botaoAdminRestaurar">Restaurar Lista Padr\u00e3o</button>
             </div>
         </div>
         
-        <hr class="hrAdmin" style="margin-bottom: 25px; border: 0; border-top: 1px solid #ddd;">
-
-        <h2>Cadastro de Vereadores</h2>
-        <div id="listaAdministradorVereadores" class="adminListaVereadores"></div>
-        <button id="btnAdicionarAdminVereador" class="botaoVereador adminAdicionar">+ Adicionar Vereador</button>
-        <div class="adminAcoes">
-            <button id="btnSalvarAdmin" class="botaoAdmin botaoAdminSalvar">Salvar Altera\u00e7\u00f5es</button>
-            <button id="btnCancelarAdmin" class="botaoAdmin botaoAdminCancelar">Cancelar</button>
-            <button id="btnRestaurarAdmin" class="botaoAdmin botaoAdminRestaurar">Restaurar Lista Padr\u00e3o</button>
-        </div>
         <div style="margin-top: 40px; text-align: center; color: #888; font-size: 13px; font-weight: bold;">
             Versão 1.4
         </div>
     `;
 
+    const sliderOpacidade = document.getElementById("opacidadeBrasaoSlider");
+    const valorOpacidade = document.getElementById("opacidadeBrasaoValor");
+    if (sliderOpacidade && valorOpacidade) {
+        sliderOpacidade.addEventListener("input", function(e) {
+            const val = e.target.value;
+            valorOpacidade.textContent = val + "%";
+            localStorage.setItem("opacidadeBrasao", (val / 100).toString());
+        });
+    }
+
+    const swatches = document.querySelectorAll(".cor-swatch");
+    const inputCorPersonalizada = document.getElementById("corOradorPersonalizada");
+    
+    function atualizarCorTelao(cor) {
+        localStorage.setItem("corNomeOrador", cor);
+        if(inputCorPersonalizada) inputCorPersonalizada.value = cor;
+    }
+
+    swatches.forEach(swatch => {
+        swatch.addEventListener("click", (e) => {
+            const cor = e.target.dataset.cor;
+            atualizarCorTelao(cor);
+        });
+    });
+
+    if (inputCorPersonalizada) {
+        inputCorPersonalizada.addEventListener("input", (e) => {
+            atualizarCorTelao(e.target.value);
+        });
+    }
+
+    
+    
+
+
     const listaEl = document.getElementById("listaAdministradorVereadores");
 
     function renderLinhas(dados){
         listaEl.innerHTML = "";
+        listaEl._renderLinhasFn = renderLinhas; // attach so helper can use it
         dados.forEach((vereador, index) => {
             const linha = document.createElement("div");
             linha.className = "adminVereadorLinha";
+            
+            configurarDragAndDrop(linha, index, dados, (novoArray) => renderLinhas(novoArray), 'admin');
+            
             linha.dataset.id = vereador.id || gerarIdVereador();
             linha.innerHTML = `
                 <input type="text" value="${String(vereador.nome || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}">
@@ -1776,6 +1981,20 @@ function iniciarOradorDiscussao(index){
     const orador = filaDiscussaoOradores[index];
     if(!orador) return;
 
+    if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        const cronEl = document.getElementById("cronometro");
+        if(tempoRestante > 0){
+            cronEl.style.display = "";
+            ativarAudioContexto();
+            iniciarCronometro();
+        } else {
+            cronEl.style.display = "none";
+        }
+        atualizarFilaDiscussao();
+        salvarEstadoTelao();
+        return;
+    }
+
     pausarCronometro();
 
     definirOradorAtual("orador", orador.nome);
@@ -1908,6 +2127,8 @@ function atualizarFilaDiscussao(){
     filaDiscussaoOradores.forEach((orador, index) => {
         const container = document.createElement("div");
         container.className = "itemFilaContainer";
+        
+        configurarDragAndDrop(container, index, filaDiscussaoOradores, atualizarFilaDiscussao, 'discussao');
 
         const item = document.createElement("div");
         const itemAtivo = speakerAtualEhAlvo("orador", orador.nome, null, null);
@@ -2485,6 +2706,20 @@ function speakerAtualEhAlvo(tipo, nome, nomeOriginal, indexReplica){
 }
 
 function iniciarOradorConsideracoes(nome){
+    if(speakerAtualEhAlvo("orador", nome, null, null)){
+        const cronEl = document.getElementById("cronometro");
+        if(tempoRestante > 0){
+            cronEl.style.display = "";
+            ativarAudioContexto();
+            iniciarCronometro();
+        } else {
+            cronEl.style.display = "none";
+        }
+        atualizarFilaConsideracoes();
+        salvarEstadoTelao();
+        return;
+    }
+
     pausarCronometro();
 
     oradorAtualConsideracoes = nome;
@@ -2605,7 +2840,11 @@ function abrirMenuTempoExtra(event, tipo, nome, nomeOriginal, indexReplica){
 
 document.addEventListener("click", fecharMenuTempoExtra);
 window.addEventListener("resize", fecharMenuTempoExtra);
-window.addEventListener("scroll", fecharMenuTempoExtra, true);
+window.addEventListener("scroll", (e) => {
+    if (menuTempoExtraAberto && !menuTempoExtraAberto.contains(e.target) && e.target !== menuTempoExtraAberto) {
+        fecharMenuTempoExtra();
+    }
+}, true);
 
 function renderizarOpcoesTempoExtra(tipo, nome, nomeOriginal, indexReplica, desativado){
     return opcoesTempoExtraOrador.map(opcao => `
@@ -2716,6 +2955,8 @@ function atualizarFilaConsideracoes(){
 
         const container = document.createElement("div");
         container.className = "itemFilaContainer";
+        
+        configurarDragAndDrop(container, index, filaConsideracoes, atualizarFilaConsideracoes, 'consideracoes');
 
         const item =
         document.createElement(
@@ -3268,6 +3509,20 @@ function iniciarReplica(nomeOriginal, indexReplica){
 
     const replica = replicas[indexReplica];
 
+    if(speakerAtualEhAlvo("replica", replica.nome, nomeOriginal, indexReplica)){
+        const cronEl = document.getElementById("cronometro");
+        if(tempoRestante > 0){
+            cronEl.style.display = "";
+            ativarAudioContexto();
+            iniciarCronometro();
+        } else {
+            cronEl.style.display = "none";
+        }
+        atualizarFilaReplicas();
+        salvarEstadoTelao();
+        return;
+    }
+
     console.log("[iniciarReplica] INÍCIO - nomeOriginal:", nomeOriginal, "indexReplica:", indexReplica, "replica:", JSON.stringify(replica), "speakerAtual antes:", JSON.stringify(speakerAtual), "fila:", JSON.stringify(filaConsideracoes), "replicasConcluidas:", JSON.stringify(replicasConcluidasAtual));
 
     // Pausar o cronômetro atual e configurar para a réplica
@@ -3458,11 +3713,7 @@ CONVIDADOS - FUNÇÕES
 
 function carregarConvidados(){
 
-    // Limpar estado ao carregar
-    filaConvidadosOradores = [];
-    historicoConvidados = [];
-    convidadosAdicionados = [];
-    tempoInicialConvidado = 120;
+    
 
     painelEsquerdo.innerHTML = `
 
@@ -3571,13 +3822,7 @@ function carregarConvidados(){
     });
 
     // Pausar cronômetro e limpar orador atual
-    pausarCronometro();
-    definirOradorAtual("none");
-    tempoInicial = 300;
-    tempoRestante = 300;
-    // Ocultar cronômetro no modo convidados (tempo é facultativo)
-    document.getElementById("cronometro").style.display = "none";
-    salvarEstadoTelao();
+    
 
     atualizarFilaConvidados();
 }
@@ -3632,6 +3877,24 @@ function iniciarOradorConvidados(index){
     const orador = filaConvidadosOradores[index];
     if(!orador) return;
 
+    if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
+        const cronEl = document.getElementById("cronometro");
+        if(orador.tempo <= 0){
+            cronEl.style.display = "none";
+        } else {
+            if(tempoRestante > 0){
+                cronEl.style.display = "";
+                ativarAudioContexto();
+                iniciarCronometro();
+            } else {
+                cronEl.style.display = "none";
+            }
+        }
+        atualizarFilaConvidados();
+        salvarEstadoTelao();
+        return;
+    }
+
     pausarCronometro();
 
     definirOradorAtual("orador", orador.nome);
@@ -3674,16 +3937,17 @@ function adicionarTempoOradorConvidados(index, segundos){
     // Define o tempo (não é extra - é o tempo total ofertado)
     orador.tempo = segundos;
 
-    // Se o orador estiver falando, mostrar o cronômetro e atualizar
+    // Se o orador estiver falando, atualizar o cronômetro
     const cronEl = document.getElementById("cronometro");
     if(speakerAtualEhAlvo("orador", orador.nome, null, null)){
-        cronEl.style.display = "";
-        tempoInicial = segundos;
-        tempoRestante = segundos;
-        atualizarCronometro();
-        // Se estava pausado e não rodando, não inicia automático
-        // Se estava rodando, mantém rodando
-        // Se não estava rodando, apenas mostra o tempo parado
+        if(segundos <= 0){
+            cronEl.style.display = "none";
+        } else {
+            cronEl.style.display = "";
+            tempoInicial = segundos;
+            tempoRestante = segundos;
+            atualizarCronometro();
+        }
     }
 
     atualizarFilaConvidados();
@@ -3781,6 +4045,8 @@ function atualizarFilaConvidados(){
     filaConvidadosOradores.forEach((orador, index) => {
         const container = document.createElement("div");
         container.className = "itemFilaContainer";
+        
+        configurarDragAndDrop(container, index, filaConvidadosOradores, atualizarFilaConvidados, 'convidados');
 
         const item = document.createElement("div");
         const itemAtivo = speakerAtualEhAlvo("orador", orador.nome, null, null);

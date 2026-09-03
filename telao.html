@@ -38,7 +38,7 @@ body{
 }
 
 body.tela-simples-mode::before{
-    opacity: 0.50;
+    opacity: var(--brasao-opacity, 0.5);
 }
 body::before{
     content: '';
@@ -49,7 +49,7 @@ body::before{
     height: 100%;
     background: url('Brasao_Uba.png') center center no-repeat;
     background-size: contain;
-    opacity: 0.5;
+    opacity: var(--brasao-opacity, 0.5);
     z-index: 0;
     pointer-events: none;
 }
@@ -241,6 +241,8 @@ setInterval(()=>{
     try{
         const dados = JSON.parse(localStorage.getItem('estadoCronometro') || '{}');
         const modo = dados.modoSessao || 'consideracoes';
+        const opacidade = localStorage.getItem('opacidadeBrasao') || '0.5';
+        document.body.style.setProperty('--brasao-opacity', opacidade);
         
         document.getElementById('tituloSessaoTelao').textContent = dados.tituloSessao || 'CONSIDERAÇÕES FINAIS';
         
@@ -282,6 +284,9 @@ setInterval(()=>{
             }
         }
         
+        const corOrador = localStorage.getItem('corNomeOrador') || '#fff';
+        oradorAtualEl.style.color = corOrador;
+
         const cronEl = document.getElementById('cronometroTelao');
         // Se o cronômetro estiver oculto no operador, ocultar também no telão
         if(dados.cronometroOculto){
