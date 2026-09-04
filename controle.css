@@ -260,12 +260,7 @@ body{
 
 /* BOTÕES */
 
-.opcoes{
-
-    margin-top:30px;
-    text-align:center;
-
-    display:flex;
+.opcoes{ margin-top:30px; text-align:center; display:none;
 
     gap:15px;
 
@@ -275,11 +270,7 @@ body{
     padding: 6px 16px !important;
 }
 
-.acoes{
-
-    margin-top:10px;
-
-    display:flex;
+.acoes{ margin-top:10px; display:none;
 
     flex-wrap:wrap;
 
