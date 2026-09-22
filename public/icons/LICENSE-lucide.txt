@@ -1,0 +1,3 @@
+Icons adapted from Lucide Icons.
+Lucide is licensed under the ISC License.
+Source: https://github.com/lucide-icons/lucide

@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Controle de Uso da Palavra",
+  "description": "Sistema de controle de tempo e telão para sessões plenárias da Câmara Municipal de Ubá com integração SAPL",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

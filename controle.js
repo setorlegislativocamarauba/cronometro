@@ -1,6 +1,44 @@
 "use strict";
 
 /* ==========================
+NOTIFICAÇÕES (TOAST)
+========================== */
+function showToast(message, isError = false) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.bottom = '30px';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.backgroundColor = isError ? '#d32f2f' : '#2e7d32';
+    toast.style.color = '#fff';
+    toast.style.padding = '12px 24px';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 4px 14px rgba(0,0,0,0.25)';
+    toast.style.zIndex = '99999';
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    toast.style.fontFamily = 'Arial, sans-serif';
+    toast.style.fontSize = '14px';
+    toast.style.fontWeight = '600';
+    toast.style.pointerEvents = 'none';
+    
+    document.body.appendChild(toast);
+    
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) translateY(-10px)';
+    });
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(10px)';
+        setTimeout(() => toast.remove(), 350);
+    }, 3000);
+}
+window.showToast = showToast;
+
+/* ==========================
 ESTADO GLOBAL
 ========================== */
 
@@ -461,31 +499,89 @@ function restaurarListaPadrao(){
 FUNÇÕES DE SINCRONIZAÇÃO
 ========================== */
 
+const canalTelao = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("canal_telao") : null;
+function enviarMensagemTelao(msg){
+    if(canalTelao){
+        try{
+            canalTelao.postMessage(msg);
+        }catch(e){}
+    }
+}
+
+let ultimaSincServidor = 0;
+let timeoutSincServidor = null;
+function sincronizarComServidor(estado){
+    const agora = Date.now();
+    if(agora - ultimaSincServidor > 200){
+        ultimaSincServidor = agora;
+        clearTimeout(timeoutSincServidor);
+        fetch('/api/estado-telao', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(estado)
+        }).catch(() => {});
+    } else {
+        clearTimeout(timeoutSincServidor);
+        timeoutSincServidor = setTimeout(() => {
+            ultimaSincServidor = Date.now();
+            fetch('/api/estado-telao', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(estado)
+            }).catch(() => {});
+        }, 150);
+    }
+}
+
 function salvarEstadoTelao(){
 
-    // Construir texto para exibição no telão baseado no estado explícito
-    let oradorExibir;
-    if(speakerAtual.tipo === "none"){
-        oradorExibir = "AGUARDANDO INÍCIO";
-    } else if(speakerAtual.tipo === "replica"){
-        oradorExibir = speakerAtual.nome.toUpperCase() + " (Réplica de " + speakerAtual.nomeOriginal.toUpperCase() + ")";
-    } else {
-        oradorExibir = speakerAtual.nome.toUpperCase();
+    try {
+        // Quando estiver na aba Administrador, NÃO enviar nem alterar o telão para ADMINISTRADOR
+        if(typeof modoSessao !== "undefined" && modoSessao === "administrador"){
+            return;
+        }
+
+        const tituloEl = document.getElementById("tituloSessao");
+        const tituloTexto = tituloEl ? tituloEl.textContent.trim() : "CONSIDERAÇÕES FINAIS";
+        if(tituloTexto.toUpperCase() === "ADMINISTRADOR"){
+            return;
+        }
+
+        // Construir texto para exibição no telão baseado no estado explícito
+        let oradorExibir = "AGUARDANDO INÍCIO";
+        if(typeof speakerAtual !== "undefined" && speakerAtual){
+            if(speakerAtual.tipo === "none"){
+                oradorExibir = "AGUARDANDO INÍCIO";
+            } else if(speakerAtual.tipo === "replica"){
+                oradorExibir = (speakerAtual.nome || "").toUpperCase() + " (Réplica de " + (speakerAtual.nomeOriginal || "").toUpperCase() + ")";
+            } else if(speakerAtual.nome) {
+                oradorExibir = speakerAtual.nome.toUpperCase();
+            }
+        }
+
+        const cronEl = document.getElementById("cronometro");
+        const proxEl = document.getElementById("proximoOrador");
+
+        const estado = {
+            tituloSessao: tituloEl ? tituloEl.textContent.trim() : "CONSIDERAÇÕES FINAIS",
+            oradorAtual: oradorExibir,
+            cronometro: cronEl ? cronEl.textContent.trim() : "05:00",
+            cronometroCor: cronEl ? (cronEl.style.color || "") : "",
+            cronometroOculto: cronEl ? (cronEl.style.display === "none") : false,
+            proximoOrador: proxEl ? proxEl.textContent.trim() : "Próximo(a) Orador(a): ---",
+            modoSessao: typeof modoSessao !== "undefined" ? modoSessao : "consideracoes",
+            opacidadeBrasao: localStorage.getItem("opacidadeBrasao") || "0.5",
+            corNomeOrador: localStorage.getItem("corNomeOrador") || "#ffffff",
+            corCronometro: localStorage.getItem("corCronometro") || "#ffffff",
+            timestamp: Date.now()
+        };
+
+        localStorage.setItem('estadoCronometro', JSON.stringify(estado));
+        enviarMensagemTelao({ tipo: "estado", dados: estado });
+        sincronizarComServidor(estado);
+    } catch(err) {
+        console.error("Erro em salvarEstadoTelao:", err);
     }
-
-    const cronEl = document.getElementById("cronometro");
-
-    const estado = {
-        tituloSessao: tituloSessao.textContent,
-        oradorAtual: oradorExibir,
-        cronometro: cronEl.textContent,
-        cronometroCor: cronEl.style.color || "",
-        cronometroOculto: cronEl.style.display === "none",
-        proximoOrador: document.getElementById("proximoOrador").textContent,
-        modoSessao: modoSessao
-    };
-
-    localStorage.setItem('estadoCronometro', JSON.stringify(estado));
 
 }
 
@@ -1110,21 +1206,30 @@ CONDOLÊNCIAS
 
 function carregarCondolencias(){
 
-    painelEsquerdo.innerHTML = `
-        <h2 style="text-align:center;color:#555;">
-            Minuto de Silêncio
-        </h2>
-        <div style="text-align:center;padding:20px 10px;color:#888;font-size:14px;line-height:1.6;">
-            🕊️ Momento de luto<br>
-            Tempo fixo de 1 minuto<br>
-            <span style="display:block;margin-top:15px;font-size:12px;color:#aaa;">
-                Utilize os botões Iniciar e Pausar<br>
-                ao lado para controlar o tempo.
-            </span>
-        </div>
-    `;
-
+    painelEsquerdo.innerHTML = ``;
     painelCentro.innerHTML = ``;
+
+    const msgEl = document.getElementById("mensagemTempo");
+    if(msgEl){
+        msgEl.innerHTML = `
+            <div style="text-align:center;margin-top:20px;">
+                <div style="font-size:15px;color:#666;margin-bottom:15px;">
+                    🕊️ <strong>Minuto de Silêncio</strong> — Momento de luto (1 minuto)
+                </div>
+                <div style="display:flex;gap:12px;justify-content:center;">
+                    <button class="btnControleFila btnIniciarFila" onclick="iniciarCronometro()" style="padding:10px 22px;font-size:15px;border-radius:6px;cursor:pointer;">
+                        ▶ Iniciar
+                    </button>
+                    <button class="btnControleFila btnPausarFila" onclick="pausarCronometro()" style="padding:10px 22px;font-size:15px;border-radius:6px;cursor:pointer;">
+                        ⏸ Pausar
+                    </button>
+                    <button class="btnControleFila" onclick="restaurarCronometro()" style="padding:10px 22px;font-size:15px;background:#00bcd4;color:white;border-radius:6px;cursor:pointer;">
+                        ↺ Reiniciar
+                    </button>
+                </div>
+            </div>
+        `;
+    }
 
     // Pausar cronômetro e configurar para 1 minuto
     pausarCronometro();
@@ -1144,9 +1249,13 @@ function carregarPausa(){
 
     painelEsquerdo.innerHTML = `
         <h2 style="text-align:center;color:#555;">
-            Selecionar Duração
+            Pausa da Sessão
         </h2>
-        <div id="listaTemposPausa" style="display:flex;flex-direction:column;gap:6px;padding:10px 0;"></div>
+        <div style="text-align:center;padding:5px 10px;color:#666;font-size:14px;">
+            <div id="statusPausa" style="margin-bottom:8px;">Pausa selecionada: <strong>1 minuto</strong></div>
+        </div>
+        <h3 style="text-align:center;color:#777;font-size:13px;margin:10px 0 5px 0;">Selecionar Duração</h3>
+        <div id="listaTemposPausa" style="display:flex;flex-direction:column;gap:6px;padding:5px 0;"></div>
     `;
 
     painelCentro.innerHTML = ``;
@@ -1200,7 +1309,7 @@ function selecionarTempoPausa(minutos){
     // Atualizar status
     const statusEl = document.getElementById("statusPausa");
     if(statusEl){
-        statusEl.innerHTML = "Pausa selecionada: <strong>" + minutos + " minuto" + (minutos > 1 ? "s" : "") + "</strong><br><br>Clique em <strong>Iniciar</strong> para começar a contagem regressiva";
+        statusEl.innerHTML = "Pausa selecionada: <strong>" + minutos + " minuto" + (minutos > 1 ? "s" : "") + "</strong>";
     }
 }
 
@@ -1236,6 +1345,12 @@ function selecionarModo(
     );
 
     atualizarControlesPrincipaisPorModo(modo);
+
+    // Limpar mensagem de condolências se estiver em outro modo
+    const msgTempoEl = document.getElementById("mensagemTempo");
+    if(msgTempoEl && modo !== "condolencias"){
+        msgTempoEl.innerHTML = "";
+    }
 
     // Restaurar visibilidade dos elementos que podem ter sido escondidos por modos simples
     let tituloStatusEl = document.querySelector(".tituloStatus");
@@ -1337,8 +1452,8 @@ function selecionarModo(
             "modoAtivo"
         );
 
-        proximoEl.style.display = "none";
-        btnProximoEl.style.display = "none";
+        proximoEl.style.display = "";
+        btnProximoEl.style.display = "";
 
         // Mostrar container ao sair da tela simples
         const container = document.querySelector(".container");
@@ -1551,7 +1666,11 @@ function selecionarModo(
             btnTelaoAntes.id = "btnTelaoAntes";
             btnTelaoAntes.innerHTML = '<img class="iconeBotao" src="icons/tela-simples.svg" alt=""> Telão - Antes da Sessão';
             btnTelaoAntes.style.cssText = "padding:12px 24px;background:#10b981;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;font-weight:bold; display: flex; align-items: center; gap: 8px;";
-            btnTelaoAntes.addEventListener("click", () => window.open("telao_antes.html", "telao", "width=1280,height=720"));
+            btnTelaoAntes.addEventListener("click", () => {
+                const inputEl = document.getElementById("saplSessaoIdInput");
+                const currentId = (inputEl && inputEl.value.trim()) || localStorage.getItem("saplSessaoId") || "1947";
+                window.open("telao_antes.html?sessao=" + encodeURIComponent(currentId), "telao", "width=1280,height=720");
+            });
             
             const btnTelaoSimples = document.createElement("button");
             btnTelaoSimples.id = "btnTelaoSimples";
@@ -1586,12 +1705,12 @@ function selecionarModo(
             };
 
             containerSaplConfig.innerHTML = `
-                <h2 style="margin-top: 0; color: #00447c; font-size: 18px;">Integração SAPL (Telão Antes da Sessão)</h2>
-                <div style="display:flex; flex-direction:column; align-items:center; margin-top: 15px;">
-                    <label style="font-weight:bold; margin-bottom: 5px;">ID da Sessão no SAPL:</label>
-                    <div style="display:flex; gap: 10px;">
-                        <input type="text" id="saplSessaoIdInput" value="${saplSessaoId}" placeholder="Ex: 1947" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 120px; text-align: center;">
-                        <button id="btnSalvarSapl" style="margin: 0; padding: 8px 15px; background: #064f86; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Salvar ID</button>
+                <h2 style="margin-top: 0; margin-bottom: 8px; color: #00447c; font-size: 16px; font-weight: 700; text-align: center;">Integração SAPL (Telão Antes da Sessão)</h2>
+                <div style="display:flex; flex-direction:column; align-items:center; margin-top: 10px;">
+                    <label style="font-weight: 600; font-size: 13px; color: #475569; margin-bottom: 8px;">ID da Sessão no SAPL:</label>
+                    <div style="display:flex; align-items: center; gap: 8px;">
+                        <input type="text" id="saplSessaoIdInput" value="${saplSessaoId}" placeholder="Ex: 1947" style="box-sizing: border-box; height: 38px; width: 120px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; font-size: 14px; font-weight: 600; color: #1e293b; background: #fff; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#00447c'" onblur="this.style.borderColor='#cbd5e1'">
+                        <button id="btnSalvarSapl" style="box-sizing: border-box; height: 38px; margin: 0; padding: 0 16px; background: #00447c; color: white; border: 1px solid #00447c; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background 0.2s, transform 0.1s; box-shadow: 0 1px 2px rgba(0,0,0,0.06);" onmouseover="this.style.background='#003360'" onmouseout="this.style.background='#00447c'">Salvar ID</button>
                     </div>
                     <div id="saplHistoryWrapper">
                         ${renderHistory()}
@@ -1614,6 +1733,19 @@ function selecionarModo(
                 localStorage.setItem("saplSessaoIdHistory", JSON.stringify(history));
                 
                 document.getElementById("saplHistoryWrapper").innerHTML = renderHistory();
+
+                fetch('/api/sapl/sessao-id', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessaoId: val })
+                }).catch(() => {});
+
+                fetch('/api/estado-telao', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ saplSessaoId: val })
+                }).catch(() => {});
+
                 showToast("ID da Sessão salvo com sucesso!");
             });
         }
@@ -1643,57 +1775,36 @@ function selecionarModo(
 }
 
 function atualizarControlesPrincipaisPorModo(modo){
-    const ocultarControlesIndividuais =
-    modo === "consideracoes" || modo === "discussao" || modo === "tribuna" || modo === "convidados" || modo === "administrador";
+    const opcoesContainer = document.querySelector(".opcoes");
+    const acoesContainer = document.querySelector(".acoes");
 
-    const btnIniciarEl = document.getElementById("btnIniciar");
-    const btnPausarEl = document.getElementById("btnPausar");
-    const btnEncerrarEl = document.getElementById("btnEncerrar");
-    const btnRestaurarEl = document.getElementById("btnRestaurar");
-    const btnProximoEl = document.getElementById("btnProximo");
-    const btnRetornarEl = document.getElementById("btnRetornar");
+    // Ocultar os botões de ações centrais definitivamente (.acoes)
+    // pois suas funções já constam nos cards individuais dos oradores
+    if(acoesContainer){
+        acoesContainer.style.display = "none";
+    }
+
+    // O botão do alarme e do tempo extra deve ser mantido em todas as abas,
+    // salvo na aba das condolências (e modos de administração / telão)
+    const ocultarOpcoes = modo === "condolencias" || modo === "administrador" || modo === "tela_simples";
+
+    if(opcoesContainer){
+        opcoesContainer.style.display = ocultarOpcoes ? "none" : "flex";
+    }
+
     const btnTempoExtraEl = document.getElementById("btnTempoExtra");
     const btnAlarmeEl = document.getElementById("btnAlarme");
-    const btnTelaoEl = document.getElementById("btnTelao");
-
-    // Modos que só devem ter Iniciar e Pausar (sem alarme, tempo extra, encerrar, etc.)
-    const ocultarControlesAvancados = modo === "condolencias" || modo === "pausa" || modo === "administrador";
-    const ocultarBotoesAlarmeTempo = modo === "condolencias" || modo === "administrador";
-
-    if(btnIniciarEl){
-        btnIniciarEl.style.display = ocultarControlesIndividuais ? "none" : "";
-    }
-
-    if(btnPausarEl){
-        btnPausarEl.style.display = ocultarControlesIndividuais ? "none" : "";
-    }
-
-    if(btnEncerrarEl){
-        btnEncerrarEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
-    }
-
-    if(btnRestaurarEl){
-        btnRestaurarEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
-    }
-
-    if(btnProximoEl){
-        btnProximoEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
-    }
-
-    if(btnRetornarEl){
-        btnRetornarEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
-    }
 
     if(btnTempoExtraEl){
-        btnTempoExtraEl.style.display = ocultarBotoesAlarmeTempo ? "none" : "";
+        btnTempoExtraEl.style.display = ocultarOpcoes ? "none" : "";
     }
-
     if(btnAlarmeEl){
-        btnAlarmeEl.style.display = ocultarBotoesAlarmeTempo ? "none" : "";
+        btnAlarmeEl.style.display = ocultarOpcoes ? "none" : "";
     }
 
-    if(btnTelaoEl){
-        btnTelaoEl.style.display = ocultarControlesIndividuais || ocultarControlesAvancados ? "none" : "";
+    const controlesPausaEl = document.getElementById("controlesPausa");
+    if(controlesPausaEl){
+        controlesPausaEl.style.display = (modo === "pausa") ? "flex" : "none";
     }
 }
 
@@ -1762,7 +1873,6 @@ function renderizarAdministrador(lista = vereadoresCadastro){
         
 
         <div class="admin-card">
-            <h2>Cadastro de Vereadores</h2>
             <div id="listaAdministradorVereadores" class="adminListaVereadores"></div>
             <button id="btnAdicionarAdminVereador" class="botaoVereador adminAdicionar">+ Adicionar Vereador</button>
             <div class="adminAcoes">
@@ -1783,7 +1893,10 @@ function renderizarAdministrador(lista = vereadoresCadastro){
         sliderOpacidade.addEventListener("input", function(e) {
             const val = e.target.value;
             valorOpacidade.textContent = val + "%";
-            localStorage.setItem("opacidadeBrasao", (val / 100).toString());
+            const opVal = (val / 100).toString();
+            localStorage.setItem("opacidadeBrasao", opVal);
+            salvarEstadoTelao();
+            enviarMensagemTelao({ tipo: "opacidadeBrasao", valor: opVal });
         });
     }
 
@@ -1793,6 +1906,8 @@ function renderizarAdministrador(lista = vereadoresCadastro){
     function atualizarCorTelao(cor) {
         localStorage.setItem("corNomeOrador", cor);
         if(inputCorPersonalizada) inputCorPersonalizada.value = cor;
+        salvarEstadoTelao();
+        enviarMensagemTelao({ tipo: "corNomeOrador", valor: cor });
     }
 
     swatches.forEach(swatch => {
@@ -1814,7 +1929,8 @@ function renderizarAdministrador(lista = vereadoresCadastro){
     function atualizarCorCronometro(cor) {
         localStorage.setItem("corCronometro", cor);
         if(inputCorCronPersonalizada) inputCorCronPersonalizada.value = cor;
-        // The telao.html listens to storage events, so it will update instantly!
+        salvarEstadoTelao();
+        enviarMensagemTelao({ tipo: "corCronometro", valor: cor });
     }
 
     swatchesCron.forEach(swatch => {
@@ -1823,16 +1939,6 @@ function renderizarAdministrador(lista = vereadoresCadastro){
             atualizarCorCronometro(cor);
         });
     });
-
-    if (inputCorCronPersonalizada) {
-        inputCorCronPersonalizada.addEventListener("input", (e) => {
-            atualizarCorCronometro(e.target.value);
-        });
-    }
-
-    
-    
-
 
     const listaEl = document.getElementById("listaAdministradorVereadores");
 
@@ -2021,6 +2127,9 @@ carregarVereadores();
 selecionarModo(
     "tela_simples"
 );
+
+salvarEstadoTelao();
+setInterval(salvarEstadoTelao, 1000);
 
 function adicionarOradorDiscussao(nome){
     const jaNaFila = filaDiscussaoOradores.some(o => o.nome.toUpperCase() === nome.toUpperCase());

@@ -8,6 +8,56 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(express.json());
+
+  // Estado compartilhado em memória para sincronização do telão
+  let estadoTelaoCompartilhado: any = {
+    tituloSessao: "CONSIDERAÇÕES FINAIS",
+    oradorAtual: "AGUARDANDO INÍCIO",
+    cronometro: "05:00",
+    cronometroCor: "",
+    cronometroOculto: false,
+    proximoOrador: "Próximo(a) Orador(a): ---",
+    modoSessao: "consideracoes",
+    opacidadeBrasao: "0.5",
+    corNomeOrador: "#ffffff",
+    corCronometro: "#ffffff",
+    saplSessaoId: "1947",
+    timestamp: Date.now()
+  };
+
+  let sessaoSaplIdAtual = "1947";
+
+  app.get("/api/estado-telao", (req, res) => {
+    res.json(estadoTelaoCompartilhado);
+  });
+
+  app.post("/api/estado-telao", (req, res) => {
+    if (req.body && typeof req.body === "object") {
+      estadoTelaoCompartilhado = {
+        ...estadoTelaoCompartilhado,
+        ...req.body,
+        timestamp: Date.now()
+      };
+      if (req.body.saplSessaoId) {
+        sessaoSaplIdAtual = String(req.body.saplSessaoId).trim();
+      }
+    }
+    res.json({ ok: true, timestamp: estadoTelaoCompartilhado.timestamp });
+  });
+
+  app.get("/api/sapl/sessao-id", (req, res) => {
+    res.json({ sessaoId: sessaoSaplIdAtual });
+  });
+
+  app.post("/api/sapl/sessao-id", (req, res) => {
+    if (req.body && req.body.sessaoId) {
+      sessaoSaplIdAtual = String(req.body.sessaoId).trim();
+      estadoTelaoCompartilhado.saplSessaoId = sessaoSaplIdAtual;
+    }
+    res.json({ ok: true, sessaoId: sessaoSaplIdAtual });
+  });
+
   // Add the API route for SAPL
   app.get("/api/sapl/pauta/:sessaoId", async (req, res) => {
     try {
@@ -48,11 +98,15 @@ async function startServer() {
       
       vincularEmendasAosProjetos(emendas, ordemDoDia);
       
+      const materiasParaExibir = ordemDoDia.length > 0 ? ordemDoDia : materias;
+
       res.json({
         ok: true,
         sessaoId: Number(sessaoId),
         sessao,
-        ordemDoDia,
+        ordemDoDia: materiasParaExibir,
+        materias,
+        apresentacao,
         fonte: url
       });
       
@@ -70,8 +124,9 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = process.cwd();
+    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    app.use(express.static(process.cwd()));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });

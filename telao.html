@@ -20,6 +20,10 @@ href="Brasao_Uba.png">
 
 <style>
 
+:root{
+    --brasao-opacity: 0.5;
+}
+
 *{
     margin: 0;
     padding: 0;
@@ -37,21 +41,20 @@ body{
     position: relative;
 }
 
-body.tela-simples-mode::before{
-    opacity: var(--brasao-opacity, 0.5);
-}
-body::before{
-    content: '';
+.brasao-fundo{
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: url('Brasao_Uba.png') center center no-repeat;
+    background-image: url('Brasao_Uba.png'), url('https://setorlegislativocamarauba.github.io/cronometro/Brasao_Uba.png');
+    background-position: center center;
+    background-repeat: no-repeat;
     background-size: contain;
-    opacity: var(--brasao-opacity, 0.5);
+    opacity: 0.5;
     z-index: 0;
     pointer-events: none;
+    transition: opacity 0.05s linear;
 }
 
 .container-telao,
@@ -218,8 +221,8 @@ body::before{
 </head>
 
 <body>
-   
-    
+
+<div id="brasaoFundo" class="brasao-fundo"></div>
 
 <div class="relogio-telao" id="relogioTelao"></div>
 
@@ -263,13 +266,29 @@ body::before{
 
 <script>
 
-// Sincronizar com a aba principal usando localStorage
-function atualizarTelao() {
+// Sincronizar com a aba principal usando localStorage e BroadcastChannel
+function aplicarOpacidadeBrasao(opacidade) {
+    const brasaoEl = document.getElementById('brasaoFundo');
+    if(brasaoEl){
+        brasaoEl.style.opacity = opacidade;
+    }
+    document.documentElement.style.setProperty('--brasao-opacity', opacidade);
+    document.body.style.setProperty('--brasao-opacity', opacidade);
+}
+
+function atualizarTelao(dadosParam) {
     try{
-        const dados = JSON.parse(localStorage.getItem('estadoCronometro') || '{}');
+        const dados = dadosParam || JSON.parse(localStorage.getItem('estadoCronometro') || '{}');
         const modo = dados.modoSessao || 'consideracoes';
-        const opacidade = localStorage.getItem('opacidadeBrasao') || '0.5';
-        document.body.style.setProperty('--brasao-opacity', opacidade);
+
+        // Quando estiver na aba de administrador no operador, NÃO exibir nem alterar para "ADMINISTRADOR" no telão!
+        if (modo === 'administrador' || (dados.tituloSessao && dados.tituloSessao.trim().toUpperCase() === 'ADMINISTRADOR')) {
+            return;
+        }
+
+        const opacidadeRaw = (dados && dados.opacidadeBrasao !== undefined) ? dados.opacidadeBrasao : localStorage.getItem('opacidadeBrasao');
+        const opacidade = (opacidadeRaw !== null && opacidadeRaw !== '' && !isNaN(parseFloat(opacidadeRaw))) ? opacidadeRaw : '0.5';
+        aplicarOpacidadeBrasao(opacidade);
         
         document.getElementById('tituloSessaoTelao').textContent = dados.tituloSessao || 'CONSIDERAÇÕES FINAIS';
         
@@ -311,7 +330,7 @@ function atualizarTelao() {
             }
         }
         
-        const corOrador = localStorage.getItem('corNomeOrador') || '#fff';
+        const corOrador = (dados && dados.corNomeOrador) || localStorage.getItem('corNomeOrador') || '#fff';
         oradorAtualEl.style.color = corOrador;
 
         const cronEl = document.getElementById('cronometroTelao');
@@ -330,7 +349,7 @@ function atualizarTelao() {
                 cronEl.classList.remove('cronometroPiscando');
             }
             
-            const baseTimerColor = localStorage.getItem('corCronometro') || '#fff';
+            const baseTimerColor = (dados && dados.corCronometro) || localStorage.getItem('corCronometro') || '#fff';
             cronEl.style.color = dados.cronometroCor || baseTimerColor;
         }
         
@@ -347,11 +366,51 @@ function atualizarTelao() {
     }
 }
 
+let ultimoTimestampServidor = 0;
+async function buscarEstadoServidor() {
+    try {
+        const resp = await fetch('/api/estado-telao');
+        if (resp.ok) {
+            const dadosServidor = await resp.json();
+            if (dadosServidor && dadosServidor.timestamp && dadosServidor.timestamp > ultimoTimestampServidor) {
+                ultimoTimestampServidor = dadosServidor.timestamp;
+                atualizarTelao(dadosServidor);
+            }
+        }
+    } catch(e) {}
+}
+
 // Inicia na primeira carga
 atualizarTelao();
+buscarEstadoServidor();
 
-// Atualiza instantaneamente sempre que houver mudanças
-window.addEventListener('storage', atualizarTelao);
+// Sincronização em tempo real via BroadcastChannel
+const canalTelao = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('canal_telao') : null;
+if(canalTelao){
+    canalTelao.onmessage = function(ev){
+        if(ev && ev.data){
+            if(ev.data.tipo === 'opacidadeBrasao'){
+                aplicarOpacidadeBrasao(ev.data.valor);
+            } else if(ev.data.tipo === 'corNomeOrador'){
+                const oradorAtualEl = document.getElementById('oradorAtualTelao');
+                if(oradorAtualEl) oradorAtualEl.style.color = ev.data.valor;
+            } else if(ev.data.tipo === 'corCronometro'){
+                const cronEl = document.getElementById('cronometroTelao');
+                if(cronEl) cronEl.style.color = ev.data.valor;
+            } else if(ev.data.tipo === 'estado' && ev.data.dados){
+                atualizarTelao(ev.data.dados);
+            } else {
+                atualizarTelao();
+            }
+        }
+    };
+}
+
+// Atualiza instantaneamente sempre que houver mudanças de storage entre abas do mesmo domínio
+window.addEventListener('storage', () => atualizarTelao());
+
+// Polling contínuo com o servidor para sincronização independente de navegador/partição
+setInterval(buscarEstadoServidor, 250);
 
 function atualizarRelogio(){
     const agora = new Date();

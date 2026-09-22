@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telão - Antes da Sessão</title>
+    <link rel="icon" type="image/png" href="Brasao_Uba.png">
     <style>
         * {
             box-sizing: border-box;
@@ -278,7 +279,6 @@
     </div>
 
     <script>
-        const sessaoId = localStorage.getItem("saplSessaoId");
         const track = document.getElementById("carouselTrack");
         const statusMessage = document.getElementById("statusMessage");
         const sessionInfo = document.getElementById("sessionInfo");
@@ -288,30 +288,106 @@
         
         let currentPage = 0;
         let totalPages = 0;
+        let carouselTimer = null;
+        let sessaoIdAtual = null;
         const ITEMS_PER_PAGE = 3;
         const TRANSITION_DELAY_MS = 10000; // 10 seconds
 
-        async function init() {
-            if (!sessaoId) {
-                statusMessage.innerHTML = "ID da Sessão não configurado.<br><span style='font-size:18px'>Configure na aba Administrador.</span>";
-                return;
+        async function resolverSessaoId() {
+            // 1. URL search params ?sessao=1947 ou ?id=1947
+            const params = new URLSearchParams(window.location.search);
+            const idUrl = params.get("sessao") || params.get("id");
+            if (idUrl && idUrl.trim()) {
+                localStorage.setItem("saplSessaoId", idUrl.trim());
+                return idUrl.trim();
             }
 
-            try {
-                const response = await fetch('https://pauta-camara-uba.camara-uba.workers.dev/pauta/' + sessaoId);
-                const data = await response.json();
+            // 2. localStorage
+            const idStorage = localStorage.getItem("saplSessaoId");
+            if (idStorage && idStorage.trim()) {
+                return idStorage.trim();
+            }
 
-                if (!response.ok || !data.ok) {
-                    throw new Error(data.error || data.mensagem || "Erro ao carregar dados");
+            // 3. Servidor backend
+            try {
+                const resp = await fetch('/api/sapl/sessao-id');
+                if (resp.ok) {
+                    const dados = await resp.json();
+                    if (dados && dados.sessaoId && String(dados.sessaoId).trim()) {
+                        localStorage.setItem("saplSessaoId", String(dados.sessaoId).trim());
+                        return String(dados.sessaoId).trim();
+                    }
+                }
+            } catch(e) {}
+
+            // 4. Fallback padrão
+            return "1947";
+        }
+
+        async function init(forceId = null) {
+            sessaoIdAtual = forceId || await resolverSessaoId();
+
+            statusMessage.style.display = "block";
+            statusMessage.innerHTML = "Carregando pauta da sessão SAPL (" + sessaoIdAtual + ")...";
+            sessionInfo.style.display = "none";
+            carouselContainer.style.display = "none";
+
+            try {
+                let data = null;
+
+                // 1. Tenta buscar pelo proxy da API local
+                try {
+                    const respLocal = await fetch('/api/sapl/pauta/' + sessaoIdAtual);
+                    if (respLocal.ok) {
+                        const jsonLocal = await respLocal.json();
+                        if (jsonLocal && jsonLocal.ok) {
+                            data = jsonLocal;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Proxy local indisponível, tentando Cloudflare Worker...");
+                }
+
+                // 2. Fallback para Cloudflare Worker direto
+                if (!data) {
+                    const response = await fetch('https://pauta-camara-uba.camara-uba.workers.dev/pauta/' + sessaoIdAtual);
+                    if (response.ok) {
+                        data = await response.json();
+                    }
+                }
+
+                if (!data || !data.ok) {
+                    const msgErro = (data && (data.error || data.mensagem)) || "Não foi possível obter os dados da sessão " + sessaoIdAtual;
+                    throw new Error(msgErro);
                 }
 
                 renderData(data);
 
             } catch (err) {
-                console.error(err);
-                statusMessage.textContent = "Erro ao carregar matérias: " + err.message;
+                console.error("Erro ao carregar matérias:", err);
+                statusMessage.innerHTML = `
+                    <div style="font-size: 20px; font-weight: bold; color: #c62828; margin-bottom: 10px;">
+                        Erro ao carregar matérias da sessão (${sessaoIdAtual}): ${err.message}
+                    </div>
+                    <div style="font-size: 15px; color: #555; margin-top: 15px;">
+                        Verifique se o ID da sessão está correto na aba Telão ou digite abaixo:
+                    </div>
+                    <div style="margin-top: 15px; display: inline-flex; gap: 8px;">
+                        <input type="text" id="inputSessaoManual" value="${sessaoIdAtual}" style="padding: 8px 12px; font-size: 16px; border: 1px solid #999; border-radius: 6px; width: 120px; text-align: center;">
+                        <button onclick="carregarManual()" style="padding: 8px 18px; font-size: 15px; background: #00447c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Carregar</button>
+                    </div>
+                `;
             }
         }
+
+        window.carregarManual = function() {
+            const input = document.getElementById("inputSessaoManual");
+            if (input && input.value.trim()) {
+                const novoId = input.value.trim();
+                localStorage.setItem("saplSessaoId", novoId);
+                init(novoId);
+            }
+        };
 
         function renderData(data) {
             statusMessage.style.display = "none";
@@ -319,12 +395,17 @@
             carouselContainer.style.display = "block";
 
             // Title
-            let tipo = data.sessao.tipo || "Ordinária";
-            let numero = data.sessao.numero || "";
-            let ano = data.sessao.ano || "";
-            document.getElementById("sessionTitle").textContent = `Reunião ${tipo} - Pauta N.º ${numero}/${ano}`;
+            const sessao = data.sessao || {};
+            let tipo = sessao.tipo || "Ordinária";
+            let numero = sessao.numero || "";
+            let ano = sessao.ano || new Date().getFullYear();
+            let dataSessao = sessao.data ? ` (${sessao.data})` : "";
+            document.getElementById("sessionTitle").textContent = `Reunião ${tipo} - Pauta N.º ${numero}/${ano}${dataSessao}`;
 
-            const materias = data.ordemDoDia || [];
+            const materias = data.ordemDoDia || data.materias || [];
+
+            track.innerHTML = "";
+            pageIndicator.innerHTML = "";
 
             if (materias.length === 0) {
                 track.innerHTML = "<div class='status-message' style='margin-top:50px'>Nenhuma matéria na Ordem do Dia para esta sessão.</div>";
@@ -337,6 +418,7 @@
                 pages.push(materias.slice(i, i + ITEMS_PER_PAGE));
             }
             totalPages = pages.length;
+            currentPage = 0;
 
             // Build DOM
             pages.forEach((pageItems, index) => {
@@ -346,12 +428,16 @@
                 pageItems.forEach(item => {
                     const card = document.createElement("div");
                     card.className = "materia-card";
+                    const tituloItem = item.identificacao || item.titulo || (item.tipo ? `${item.tipo} nº ${item.numero}/${item.ano}` : "Matéria");
+                    const autorItem = item.autor || item.autores || "";
+                    const ementaItem = item.ementa || item.resumo || "Sem ementa informada.";
+                    
                     card.innerHTML = `
                         <div class="materia-header">
-                            <div class="materia-titulo">${item.identificacao}</div>
-                            ${item.autor ? `<div class="materia-autor">${item.autor}</div>` : ''}
+                            <div class="materia-titulo">${tituloItem}</div>
+                            ${autorItem ? `<div class="materia-autor">${autorItem}</div>` : ''}
                         </div>
-                        <div class="materia-ementa">${item.ementa}</div>
+                        <div class="materia-ementa">${ementaItem}</div>
                     `;
                     pageEl.appendChild(card);
                 });
@@ -367,14 +453,19 @@
 
             if (totalPages > 1) {
                 startCarousel();
+            } else {
+                progressBar.style.width = '100%';
             }
         }
 
         function startCarousel() {
+            if (carouselTimer) clearInterval(carouselTimer);
+            track.style.transform = `translateX(0%)`;
+
             // Animate progress bar
             progressBar.style.transition = `width ${TRANSITION_DELAY_MS}ms linear`;
             
-            setInterval(() => {
+            carouselTimer = setInterval(() => {
                 currentPage = (currentPage + 1) % totalPages;
                 
                 // Slide track
@@ -403,6 +494,26 @@
                 progressBar.style.width = '100%';
             }, 50);
         }
+
+        // Observar alterações no localStorage vindas da aba Telão
+        window.addEventListener("storage", (ev) => {
+            if (ev.key === "saplSessaoId" && ev.newValue && ev.newValue !== sessaoIdAtual) {
+                init(ev.newValue);
+            }
+        });
+
+        // Polling para checar se o servidor teve atualização do ID da sessão
+        setInterval(async () => {
+            try {
+                const resp = await fetch('/api/sapl/sessao-id');
+                if (resp.ok) {
+                    const dados = await resp.json();
+                    if (dados && dados.sessaoId && String(dados.sessaoId).trim() !== String(sessaoIdAtual)) {
+                        init(String(dados.sessaoId).trim());
+                    }
+                }
+            } catch(e) {}
+        }, 5000);
 
         init();
 
