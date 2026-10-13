@@ -207,9 +207,8 @@ function extrairMaterias(html: string) {
     const fim = (encontrados[i + 1] as any)?.index ?? html.length;
     const bloco = html.slice(inicio, fim);
 
-    let autor = "";
-    let autores = extrairAutoresDoBloco(bloco);
-    autor = autores.length === 1 ? autores[0] : "";
+    const autores = extrairAutoresDoBloco(bloco);
+    const autor = autores.join(", ");
 
     let ementa = "";
     const ementaMatch = bloco.match(/<div[^>]*class\s*=\s*["'][^"']*dont-break-out[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
